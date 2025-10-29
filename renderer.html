@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnapAsk</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-app-region: drag;
+    }
+    
+    .panel {
+      backdrop-filter: blur(20px) saturate(180%);
+      background: rgba(30, 30, 30, 0.85);
+      color: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      -webkit-app-region: no-drag;
+    }
+    
+    .title {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      letter-spacing: 0.3px;
+    }
+    
+    .close-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      border-radius: 6px;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 16px;
+    }
+    
+    .close-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.95);
+    }
+    
+    .thumbnail-container {
+      margin-bottom: 12px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgba(0, 0, 0, 0.3);
+      max-height: 120px;
+      -webkit-app-region: no-drag;
+    }
+    
+    .thumbnail-container img {
+      width: 100%;
+      height: auto;
+      display: block;
+      object-fit: contain;
+      max-height: 120px;
+    }
+    
+    .input-container {
+      margin-bottom: 10px;
+      -webkit-app-region: no-drag;
+    }
+    
+    input[type="text"] {
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: background 0.2s;
+    }
+    
+    input[type="text"]::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    input[type="text"]:focus {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .button-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      -webkit-app-region: no-drag;
+    }
+    
+    button {
+      flex: 1;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      outline: none;
+    }
+    
+    .primary-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+    }
+    
+    .primary-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .primary-btn:active {
+      transform: translateY(0);
+    }
+    
+    .primary-btn:disabled {
+      background: rgba(255, 255, 255, 0.2);
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .secondary-btn {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .secondary-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .answer-container {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 10px;
+      padding: 12px;
+      overflow-y: auto;
+      min-height: 80px;
+      -webkit-app-region: no-drag;
+    }
+    
+    .answer-text {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    
+    .answer-text.placeholder {
+      color: rgba(255, 255, 255, 0.4);
+      font-style: italic;
+    }
+    
+    .loading {
+      display: inline-block;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+    
+    /* Custom scrollbar */
+    .answer-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .answer-container::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .answer-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+    }
+    
+    .answer-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="header">
+      <div class="title">SnapAsk</div>
+      <button class="close-btn" id="closeBtn" title="Close (Esc)">×</button>
+    </div>
+    
+    <div class="thumbnail-container" id="thumbnailContainer">
+      <!-- Screenshot thumbnail will be inserted here -->
+    </div>
+    
+    <div class="input-container">
+      <input 
+        type="text" 
+        id="promptInput" 
+        placeholder="Ask about this screenshot..." 
+        autocomplete="off"
+      />
+    </div>
+    
+    <div class="button-row">
+      <button class="primary-btn" id="askBtn">Ask</button>
+      <button class="secondary-btn" id="continueBtn">Continue in App</button>
+    </div>
+    
+    <div class="answer-container">
+      <div class="answer-text placeholder" id="answerText">
+        Your answer will appear here...
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentScreenshotDataUrl = null;
+    let currentConversation = [];
+    
+    // Receive screenshot from main process
+    window.snapask.onScreenshot((dataUrl) => {
+      currentScreenshotDataUrl = dataUrl;
+      
+      // Display thumbnail
+      const img = new Image();
+      img.src = dataUrl;
+      const container = document.getElementById('thumbnailContainer');
+      container.innerHTML = '';
+      container.appendChild(img);
+      
+      // Don't auto-focus - this would activate the window and steal focus
+      // User can click on the input when they want to type
+    });
+    
+    // Close button
+    document.getElementById('closeBtn').addEventListener('click', () => {
+      window.snapask.closeWindow();
+    });
+    
+    // ESC key to close
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        window.snapask.closeWindow();
+      }
+    });
+    
+    // Enter key to ask
+    document.getElementById('promptInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('askBtn').click();
+      }
+    });
+    
+    // Ask button
+    document.getElementById('askBtn').addEventListener('click', async () => {
+      const promptInput = document.getElementById('promptInput');
+      const prompt = promptInput.value.trim() || 'Explain this image';
+      const answerText = document.getElementById('answerText');
+      const askBtn = document.getElementById('askBtn');
+      
+      // Disable button and show loading
+      askBtn.disabled = true;
+      answerText.className = 'answer-text loading';
+      answerText.textContent = 'Thinking...';
+      
+      try {
+        // TODO: Replace with actual AI API call
+        // For now, this is a mock response
+        await mockAICall(prompt, currentScreenshotDataUrl);
+        
+        // Store in conversation history
+        currentConversation.push({
+          prompt: prompt,
+          answer: answerText.textContent,
+          timestamp: new Date().toISOString()
+        });
+        
+      } catch (error) {
+        answerText.className = 'answer-text';
+        answerText.textContent = `Error: ${error.message}`;
+      } finally {
+        askBtn.disabled = false;
+      }
+    });
+    
+    // Mock AI call (replace with real API)
+    async function mockAICall(prompt, imageDataUrl) {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const answerText = document.getElementById('answerText');
+          answerText.className = 'answer-text';
+          
+          // Mock response
+          const imageSize = Math.round(imageDataUrl.length / 1024);
+          answerText.textContent = `[MOCK AI RESPONSE]\n\nPrompt: "${prompt}"\n\nImage received: ${imageSize} KB\n\nTo connect a real AI:\n1. Get an API key from OpenAI, Anthropic, or Google\n2. Replace mockAICall() with a real API call\n3. Send both the image (base64) and prompt\n\nExample providers:\n• OpenAI GPT-4V\n• Anthropic Claude 3\n• Google Gemini Pro Vision`;
+          
+          resolve();
+        }, 800);
+      });
+    }
+    
+    // Continue in app button
+    document.getElementById('continueBtn').addEventListener('click', () => {
+      window.snapask.openMainApp({
+        screenshot: currentScreenshotDataUrl,
+        conversation: currentConversation
+      });
+    });
+  </script>
+</body>
+</html>
+

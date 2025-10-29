@@ -1,0 +1,22 @@
+{
+  "name": "snapask",
+  "version": "0.1.0",
+  "description": "AI-powered screenshot assistant for macOS",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging"
+  },
+  "keywords": [
+    "electron",
+    "screenshot",
+    "ai",
+    "macos"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0"
+  }
+}
+
