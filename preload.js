@@ -20,6 +20,11 @@ contextBridge.exposeInMainWorld('snapask', {
   // Open main app window with conversation data
   openMainApp: (conversationData) => {
     ipcRenderer.send('open-main-app', conversationData);
+  },
+  
+  // Ask AI about the image
+  askAI: async (prompt, imageDataUrl) => {
+    return await ipcRenderer.invoke('ask-ai', { prompt, imageDataUrl });
   }
 });
 

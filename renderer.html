@@ -290,16 +290,23 @@
       answerText.textContent = 'Thinking...';
       
       try {
-        // TODO: Replace with actual AI API call
-        // For now, this is a mock response
-        await mockAICall(prompt, currentScreenshotDataUrl);
+        // Call Gemini AI through the main process
+        const result = await window.snapask.askAI(prompt, currentScreenshotDataUrl);
         
-        // Store in conversation history
-        currentConversation.push({
-          prompt: prompt,
-          answer: answerText.textContent,
-          timestamp: new Date().toISOString()
-        });
+        answerText.className = 'answer-text';
+        
+        if (result.success) {
+          answerText.textContent = result.text;
+          
+          // Store in conversation history
+          currentConversation.push({
+            prompt: prompt,
+            answer: result.text,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          answerText.textContent = `Error: ${result.error}`;
+        }
         
       } catch (error) {
         answerText.className = 'answer-text';
@@ -308,22 +315,6 @@
         askBtn.disabled = false;
       }
     });
-    
-    // Mock AI call (replace with real API)
-    async function mockAICall(prompt, imageDataUrl) {
-      return new Promise((resolve) => {
-        setTimeout(() => {
-          const answerText = document.getElementById('answerText');
-          answerText.className = 'answer-text';
-          
-          // Mock response
-          const imageSize = Math.round(imageDataUrl.length / 1024);
-          answerText.textContent = `[MOCK AI RESPONSE]\n\nPrompt: "${prompt}"\n\nImage received: ${imageSize} KB\n\nTo connect a real AI:\n1. Get an API key from OpenAI, Anthropic, or Google\n2. Replace mockAICall() with a real API call\n3. Send both the image (base64) and prompt\n\nExample providers:\n• OpenAI GPT-4V\n• Anthropic Claude 3\n• Google Gemini Pro Vision`;
-          
-          resolve();
-        }, 800);
-      });
-    }
     
     // Continue in app button
     document.getElementById('continueBtn').addEventListener('click', () => {

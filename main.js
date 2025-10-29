@@ -1,9 +1,15 @@
+require('dotenv').config();
 const path = require('path');
 const { app, BrowserWindow, globalShortcut, screen, clipboard, nativeImage, ipcMain } = require('electron');
 const { execFile } = require('child_process');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 let floatingWindow = null;
 
+// Initialize Gemini AI
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+console.log('API Key loaded:', process.env.GEMINI_API_KEY ? 'Yes ✓' : 'No ✗');
 /**
  * Create and show the floating chat window near the cursor
  */
@@ -105,6 +111,44 @@ ipcMain.on('open-main-app', (event, conversationData) => {
   // For now, just close the floating window
   if (floatingWindow && !floatingWindow.isDestroyed()) {
     floatingWindow.close();
+  }
+});
+
+/**
+ * Handle AI query requests from renderer
+ */
+ipcMain.handle('ask-ai', async (event, { prompt, imageDataUrl }) => {
+  try {
+    console.log('Processing AI request...');
+    
+    // Use Gemini 1.5 Flash for speed (or use 'gemini-1.5-pro' for better quality)
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    
+    // Convert data URL to base64 (remove the data:image/png;base64, prefix)
+    const base64Image = imageDataUrl.split(',')[1];
+    
+    // Prepare the image part
+    const imagePart = {
+      inlineData: {
+        data: base64Image,
+        mimeType: 'image/png'
+      }
+    };
+    
+    // Generate content with both text and image
+    const result = await model.generateContent([prompt, imagePart]);
+    const response = await result.response;
+    const text = response.text();
+    
+    console.log('AI response received');
+    return { success: true, text };
+    
+  } catch (error) {
+    console.error('AI request failed:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Failed to get AI response' 
+    };
   }
 });
 

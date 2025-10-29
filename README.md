@@ -7,7 +7,7 @@ An AI-powered screenshot assistant for macOS. Capture any part of your screen wi
 ✨ **Global Shortcut** - Press `⌃⌥⌘S` (Control+Option+Command+S) from anywhere  
 📸 **Screenshot Capture** - Uses macOS native region selector  
 💬 **Floating Chat** - Beautiful chat window appears near your cursor  
-🤖 **AI-Ready** - Ready to integrate with OpenAI, Anthropic, Google, or any multimodal LLM  
+🤖 **Google Gemini AI** - Powered by Gemini 1.5 Flash for instant image analysis  
 🎨 **Native macOS UI** - Blur effects, smooth animations, dark theme  
 
 ## Quick Start
@@ -18,13 +18,24 @@ An AI-powered screenshot assistant for macOS. Capture any part of your screen wi
 npm install
 ```
 
-### 2. Run the App
+### 2. Set Up Your Gemini API Key
+
+1. Get your API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Create a `.env` file in the project root:
+
+```bash
+GEMINI_API_KEY=your_api_key_here
+```
+
+**Note:** The `.env` file is already in `.gitignore` to keep your API key safe.
+
+### 3. Run the App
 
 ```bash
 npm start
 ```
 
-### 3. Grant Screen Recording Permission
+### 4. Grant Screen Recording Permission
 
 The first time you take a screenshot, macOS will prompt you to grant Screen Recording permission:
 
@@ -32,17 +43,18 @@ The first time you take a screenshot, macOS will prompt you to grant Screen Reco
 2. Enable the checkbox for **Electron** (or **SnapAsk** if packaged)
 3. Restart the app
 
-### 4. Take Your First Screenshot
+### 5. Take Your First Screenshot
 
 1. Press `⌃⌥⌘S` (Control+Option+Command+S)
 2. Drag to select a region of your screen
 3. A floating chat window appears near your cursor
 4. Type your question and press Enter or click "Ask"
+5. Gemini AI analyzes your screenshot and responds!
 
 ## How It Works
 
 ```
-User presses hotkey
+User presses hotkey (⌃⌥⌘S)
       ↓
 macOS screencapture tool (-i for interactive region select)
       ↓
@@ -54,7 +66,9 @@ Floating window shows near cursor with screenshot preview
       ↓
 User asks a question
       ↓
-Send image + prompt to AI API
+Send image + prompt to Google Gemini AI
+      ↓
+AI analyzes screenshot and generates response
       ↓
 Display response in floating window
 ```
@@ -70,9 +84,19 @@ snapask/
 └── README.md         # This file
 ```
 
-## Connecting to an AI API
+## AI Integration
 
-The app currently shows a **mock response**. To connect a real AI:
+The app is now **fully integrated with Google Gemini AI**! 🎉
+
+### Current Setup: Google Gemini
+
+- **Model:** Gemini 1.5 Flash (fast responses)
+- **Capabilities:** Vision + text understanding
+- **Cost:** Pay-per-use (very affordable)
+
+### Switch to a Different AI Provider
+
+Want to use a different AI? Here's how:
 
 ### Option 1: OpenAI GPT-4 Vision
 
