@@ -122,7 +122,7 @@ ipcMain.handle('ask-ai', async (event, { prompt, imageDataUrl }) => {
     console.log('Processing AI request...');
     
     // Use Gemini 1.5 Flash for speed (or use 'gemini-1.5-pro' for better quality)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     
     // Convert data URL to base64 (remove the data:image/png;base64, prefix)
     const base64Image = imageDataUrl.split(',')[1];
