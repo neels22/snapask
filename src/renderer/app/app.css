@@ -183,7 +183,7 @@ body {
   gap: 12px;
 }
 
-#appPromptInput {
+.app-prompt-input {
   flex: 1;
   border: none;
   border-radius: 10px;
@@ -195,11 +195,11 @@ body {
   transition: background 0.2s;
 }
 
-#appPromptInput::placeholder {
+.app-prompt-input::placeholder {
   color: rgba(255, 255, 255, 0.5);
 }
 
-#appPromptInput:focus {
+.app-prompt-input:focus {
   background: rgba(255, 255, 255, 0.15);
 }
 
@@ -356,7 +356,7 @@ body {
   font-weight: 500;
 }
 
-#apiKeyInput {
+.settings-input {
   width: 100%;
   padding: 12px;
   background: rgba(255, 255, 255, 0.1);
@@ -368,7 +368,7 @@ body {
   transition: border-color 0.2s;
 }
 
-#apiKeyInput:focus {
+.settings-input:focus {
   outline: none;
   border-color: #667eea;
 }
