@@ -5,6 +5,7 @@ const { execFile } = require('child_process');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 let floatingWindow = null;
+let mainAppWindow = null;
 
 // Initialize Gemini AI
 // Initialize Gemini AI
@@ -97,6 +98,130 @@ function takeInteractiveScreenshot() {
 }
 
 /**
+ * Create and show the main app window
+ */
+function showMainAppWindow(conversationData) {
+  console.log('>>> showMainAppWindow called');
+  
+  // Close floating window if open
+  if (floatingWindow && !floatingWindow.isDestroyed()) {
+    console.log('Closing floating window');
+    floatingWindow.close();
+  }
+  
+  // Reuse existing window if open
+  if (mainAppWindow && !mainAppWindow.isDestroyed()) {
+    console.log('>>> Reusing existing main app window');
+    mainAppWindow.focus();
+    mainAppWindow.moveTop();
+    // Send updated data
+    mainAppWindow.webContents.send('app-data', conversationData);
+    return;
+  }
+  
+  console.log('>>> Creating new main app window...');
+  
+  try {
+    // Center the window on screen
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width: screenWidth, height: screenHeight } = primaryDisplay.workAreaSize;
+    const windowWidth = 900;
+    const windowHeight = 700;
+    
+    console.log(`>>> Screen size: ${screenWidth}x${screenHeight}`);
+    console.log(`>>> Window will be at: ${Math.floor((screenWidth - windowWidth) / 2)}, ${Math.floor((screenHeight - windowHeight) / 2)}`);
+    
+    // Create new main app window
+    mainAppWindow = new BrowserWindow({
+      width: windowWidth,
+      height: windowHeight,
+      minWidth: 600,
+      minHeight: 500,
+      frame: true,
+      backgroundColor: '#1a1a1a',
+      show: false,
+      x: Math.floor((screenWidth - windowWidth) / 2),
+      y: Math.floor((screenHeight - windowHeight) / 2),
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false
+      }
+    });
+    
+    console.log('>>> BrowserWindow created successfully');
+    
+    // Add error handling
+    mainAppWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+      console.error('>>> FAILED to load app.html:', errorCode, errorDescription, validatedURL);
+    });
+    
+    mainAppWindow.webContents.on('crashed', () => {
+      console.error('>>> WebContents crashed!');
+    });
+    
+    // Load the app HTML
+    const loadPromise = mainAppWindow.loadFile('app.html');
+    console.log('>>> loadFile called, waiting for promise...');
+    
+    loadPromise.then(() => {
+      console.log('>>> loadFile promise resolved');
+    }).catch((err) => {
+      console.error('>>> Error loading app.html:', err);
+      console.error('>>> Error stack:', err.stack);
+    });
+    
+    // Show window when ready
+    mainAppWindow.once('ready-to-show', () => {
+      console.log('>>> Main app window ready to show - calling show()');
+      mainAppWindow.show();
+      console.log('>>> show() called');
+      mainAppWindow.focus();
+      console.log('>>> focus() called');
+      mainAppWindow.moveTop();
+      console.log('>>> moveTop() called');
+      
+      // Force show and bring to front
+      if (!mainAppWindow.isVisible()) {
+        console.log('>>> Window not visible, forcing show...');
+        mainAppWindow.showInactive();
+        mainAppWindow.show();
+      }
+      
+      // Ensure window is on top
+      mainAppWindow.setAlwaysOnTop(true);
+      setTimeout(() => {
+        mainAppWindow.setAlwaysOnTop(false);
+      }, 100);
+      
+      console.log('>>> Window should now be visible');
+      console.log('>>> Window isVisible:', mainAppWindow.isVisible());
+      console.log('>>> Window bounds:', mainAppWindow.getBounds());
+    });
+    
+    // Send conversation data once loaded
+    mainAppWindow.webContents.once('did-finish-load', () => {
+      console.log('>>> Main app window finished loading, sending data');
+      mainAppWindow.webContents.send('app-data', conversationData);
+    });
+    
+    // Handle window close
+    mainAppWindow.on('closed', () => {
+      console.log('>>> Main app window closed');
+      mainAppWindow = null;
+    });
+    
+    // Debug: Check if window is actually created
+    console.log('>>> Window created, isDestroyed:', mainAppWindow.isDestroyed());
+    console.log('>>> Window visible:', mainAppWindow.isVisible());
+    
+  } catch (error) {
+    console.error('>>> ERROR in showMainAppWindow:', error);
+    console.error('>>> Error stack:', error.stack);
+  }
+}
+
+/**
  * Handle IPC messages from renderer
  */
 ipcMain.on('close-window', () => {
@@ -106,11 +231,21 @@ ipcMain.on('close-window', () => {
 });
 
 ipcMain.on('open-main-app', (event, conversationData) => {
-  // TODO: Implement full app window with conversation history
-  console.log('Open main app requested:', conversationData);
-  // For now, just close the floating window
-  if (floatingWindow && !floatingWindow.isDestroyed()) {
-    floatingWindow.close();
+  console.log('=== IPC: open-main-app received ===');
+  console.log('Conversation data:', {
+    hasScreenshot: !!conversationData?.screenshot,
+    conversationLength: conversationData?.conversation?.length || 0
+  });
+  try {
+    showMainAppWindow(conversationData);
+  } catch (error) {
+    console.error('Error in showMainAppWindow:', error);
+  }
+});
+
+ipcMain.on('close-app-window', () => {
+  if (mainAppWindow && !mainAppWindow.isDestroyed()) {
+    mainAppWindow.close();
   }
 });
 

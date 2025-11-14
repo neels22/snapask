@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnapAsk - Main App</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <div class="app-header">
+      <h1 class="app-title">SnapAsk</h1>
+      <button class="close-btn" id="closeAppBtn" title="Close">×</button>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="app-content">
+      <!-- Screenshot Display -->
+      <div class="screenshot-section">
+        <div class="screenshot-container" id="screenshotContainer">
+          <!-- Screenshot will be inserted here -->
+        </div>
+      </div>
+
+      <!-- Conversation History -->
+      <div class="conversation-section">
+        <h2 class="section-title">Conversation</h2>
+        <div class="conversation-list" id="conversationList">
+          <!-- Conversation items will be inserted here -->
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="input-section">
+        <div class="input-wrapper">
+          <input 
+            type="text" 
+            id="appPromptInput" 
+            placeholder="Ask a follow-up question..." 
+            autocomplete="off"
+          />
+          <button class="send-btn" id="sendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+

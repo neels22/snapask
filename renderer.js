@@ -76,9 +76,14 @@ document.getElementById('askBtn').addEventListener('click', async () => {
 
 // Continue in app button
 document.getElementById('continueBtn').addEventListener('click', () => {
-  window.snapask.openMainApp({
+  console.log('Continue button clicked!');
+  console.log('Sending data to main process...');
+  const data = {
     screenshot: currentScreenshotDataUrl,
     conversation: currentConversation
-  });
+  };
+  console.log('Data:', { hasScreenshot: !!data.screenshot, conversationLength: data.conversation.length });
+  window.snapask.openMainApp(data);
+  console.log('openMainApp called');
 });
 

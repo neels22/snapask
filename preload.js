@@ -25,6 +25,18 @@ contextBridge.exposeInMainWorld('snapask', {
   // Ask AI about the image
   askAI: async (prompt, imageDataUrl) => {
     return await ipcRenderer.invoke('ask-ai', { prompt, imageDataUrl });
+  },
+  
+  // Receive app data from main process (for main app window)
+  onAppData: (callback) => {
+    ipcRenderer.on('app-data', (event, data) => {
+      callback(data);
+    });
+  },
+  
+  // Close app window
+  closeAppWindow: () => {
+    ipcRenderer.send('close-app-window');
   }
 });
 
