@@ -3,26 +3,49 @@ const path = require('path');
 const { app, BrowserWindow, globalShortcut, screen, clipboard, nativeImage, ipcMain } = require('electron');
 const { execFile } = require('child_process');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const Store = require('electron-store');
+
+// Initialize electron-store for persistent storage
+const store = new Store({
+  name: 'snapask-config',
+  defaults: {
+    apiKey: null,
+    hasCompletedOnboarding: false
+  }
+});
 
 let floatingWindow = null;
 let mainAppWindow = null;
+let onboardingWindow = null;
+let genAI = null;
+let isCapturing = false; // Flag to prevent multiple simultaneous captures
 
-// Initialize Gemini AI
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-console.log('API Key loaded:', process.env.GEMINI_API_KEY ? 'Yes ✓' : 'No ✗');
+// Initialize Gemini AI with stored API key
+function initializeAI() {
+  const apiKey = store.get('apiKey');
+  if (apiKey) {
+    genAI = new GoogleGenerativeAI(apiKey);
+    console.log('API Key loaded from storage: Yes ✓');
+    return true;
+  }
+  console.log('API Key not found in storage');
+  return false;
+}
 /**
  * Create and show the floating chat window near the cursor
  */
 function showFloatingWindow(dataUrl) {
   const { x, y } = screen.getCursorScreenPoint();
   
-  // Close existing window if open
+  // Close existing window if open and clear reference immediately
   if (floatingWindow && !floatingWindow.isDestroyed()) {
+    floatingWindow.removeAllListeners('closed'); // Remove old event listeners
     floatingWindow.close();
+    floatingWindow = null; // Clear reference immediately
   }
   
-  floatingWindow = new BrowserWindow({
+  // Create new window
+  const newWindow = new BrowserWindow({
     width: 420,
     height: 380,
     type: 'panel',                  // Makes it behave like macOS NSPanel - prevents Space switching
@@ -41,6 +64,9 @@ function showFloatingWindow(dataUrl) {
     }
   });
   
+  // Update global reference
+  floatingWindow = newWindow;
+  
   // Position near cursor (12px offset, ensure it stays on screen)
   const windowHeight = 380;
   const yPos = Math.max(40, y - windowHeight - 12);
@@ -54,17 +80,58 @@ function showFloatingWindow(dataUrl) {
   
   // Show window without stealing focus
   floatingWindow.once('ready-to-show', () => {
-    floatingWindow.showInactive();  // Show without activating - stays on current app
+    if (floatingWindow && !floatingWindow.isDestroyed()) {
+      floatingWindow.showInactive();  // Show without activating - stays on current app
+    }
   });
   
   // Send screenshot data once loaded
   floatingWindow.webContents.once('did-finish-load', () => {
-    floatingWindow.webContents.send('screenshot-captured', dataUrl);
+    if (floatingWindow && !floatingWindow.isDestroyed() && floatingWindow.webContents) {
+      floatingWindow.webContents.send('screenshot-captured', dataUrl);
+    }
   });
   
   // Handle close button from renderer
   floatingWindow.on('closed', () => {
-    floatingWindow = null;
+    if (floatingWindow === newWindow) { // Only clear if this is still the current window
+      floatingWindow = null;
+    }
+  });
+}
+
+/**
+ * Show onboarding window on first run
+ */
+function showOnboardingWindow() {
+  if (onboardingWindow && !onboardingWindow.isDestroyed()) {
+    onboardingWindow.focus();
+    return;
+  }
+  
+  onboardingWindow = new BrowserWindow({
+    width: 600,
+    height: 600,
+    frame: true,
+    backgroundColor: '#ffffff',
+    show: false,
+    resizable: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false
+    }
+  });
+  
+  onboardingWindow.loadFile('onboarding.html');
+  
+  onboardingWindow.once('ready-to-show', () => {
+    onboardingWindow.show();
+    onboardingWindow.center();
+  });
+  
+  onboardingWindow.on('closed', () => {
+    onboardingWindow = null;
   });
 }
 
@@ -72,12 +139,27 @@ function showFloatingWindow(dataUrl) {
  * Capture screenshot using macOS built-in tool
  */
 function takeInteractiveScreenshot() {
+  // Prevent multiple simultaneous captures
+  if (isCapturing) {
+    console.log('Screenshot capture already in progress, ignoring...');
+    return;
+  }
+  
+  isCapturing = true;
   console.log('Taking interactive screenshot...');
   
   // Use macOS screencapture tool: -i for interactive, -c to copy to clipboard
   execFile('/usr/sbin/screencapture', ['-i', '-c'], (err) => {
+    // Always reset the flag when done (success or error)
+    isCapturing = false;
+    
     if (err) {
-      console.error('Screenshot capture error:', err);
+      // Only log if it's not the "already running" error
+      if (!err.message.includes('cannot run two interactive')) {
+        console.error('Screenshot capture error:', err);
+      } else {
+        console.log('Screenshot capture already in progress');
+      }
       return;
     }
     
@@ -250,10 +332,49 @@ ipcMain.on('close-app-window', () => {
 });
 
 /**
+ * Handle API key storage
+ */
+ipcMain.handle('save-api-key', async (event, apiKey) => {
+  try {
+    store.set('apiKey', apiKey);
+    store.set('hasCompletedOnboarding', true);
+    // Reinitialize AI with new key
+    genAI = new GoogleGenerativeAI(apiKey);
+    console.log('API Key saved and AI initialized');
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving API key:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('get-api-key', () => {
+  return store.get('apiKey');
+});
+
+ipcMain.on('close-onboarding', () => {
+  if (onboardingWindow && !onboardingWindow.isDestroyed()) {
+    onboardingWindow.close();
+  }
+});
+
+/**
  * Handle AI query requests from renderer
  */
 ipcMain.handle('ask-ai', async (event, { prompt, imageDataUrl }) => {
   try {
+    // Check if AI is initialized
+    if (!genAI) {
+      const apiKey = store.get('apiKey');
+      if (!apiKey) {
+        return { 
+          success: false, 
+          error: 'API key not configured. Please restart the app and enter your API key.' 
+        };
+      }
+      genAI = new GoogleGenerativeAI(apiKey);
+    }
+    
     console.log('Processing AI request...');
     
     // Use Gemini 1.5 Flash for speed (or use 'gemini-1.5-pro' for better quality)
@@ -293,8 +414,33 @@ ipcMain.handle('ask-ai', async (event, { prompt, imageDataUrl }) => {
 app.whenReady().then(() => {
   console.log('SnapAsk is ready!');
   
+  // Check if user has completed onboarding
+  const hasCompletedOnboarding = store.get('hasCompletedOnboarding');
+  const apiKey = store.get('apiKey');
+  
+  if (!hasCompletedOnboarding || !apiKey) {
+    // Show onboarding window
+    showOnboardingWindow();
+  } else {
+    // Initialize AI with stored key
+    initializeAI();
+  }
+  
   // Register global shortcut: Control+Option+Command+S
-  const registered = globalShortcut.register('Control+Alt+Command+S', takeInteractiveScreenshot);
+  const registered = globalShortcut.register('Control+Alt+Command+S', () => {
+    // Check if API key exists before allowing screenshot
+    const currentApiKey = store.get('apiKey');
+    if (!currentApiKey) {
+      // Show onboarding if no API key
+      showOnboardingWindow();
+      return;
+    }
+    // Initialize AI if not already done
+    if (!genAI) {
+      initializeAI();
+    }
+    takeInteractiveScreenshot();
+  });
   
   if (registered) {
     console.log('Global shortcut registered: Control+Alt+Command+S');

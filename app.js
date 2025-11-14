@@ -128,3 +128,86 @@ async function sendMessage() {
   }
 }
 
+// Settings functionality
+const settingsBtn = document.getElementById('settingsBtn');
+const settingsModal = document.getElementById('settingsModal');
+const settingsCloseBtn = document.getElementById('settingsCloseBtn');
+const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+const apiKeyInput = document.getElementById('apiKeyInput');
+const apiKeyStatusText = document.getElementById('apiKeyStatusText');
+
+// Open settings
+settingsBtn.addEventListener('click', () => {
+  settingsModal.classList.add('show');
+  checkApiKeyStatus();
+});
+
+// Close settings
+settingsCloseBtn.addEventListener('click', () => {
+  settingsModal.classList.remove('show');
+  apiKeyInput.value = '';
+});
+
+// Close settings when clicking outside
+settingsModal.addEventListener('click', (e) => {
+  if (e.target === settingsModal) {
+    settingsModal.classList.remove('show');
+    apiKeyInput.value = '';
+  }
+});
+
+// Check API key status
+async function checkApiKeyStatus() {
+  try {
+    const apiKey = await window.snapask.getApiKey();
+    if (apiKey) {
+      // Show masked version (first 8 chars + ...)
+      const masked = apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 4);
+      apiKeyStatusText.textContent = `Configured (${masked})`;
+      apiKeyStatusText.style.color = '#4ade80';
+    } else {
+      apiKeyStatusText.textContent = 'Not configured';
+      apiKeyStatusText.style.color = '#f87171';
+    }
+  } catch (error) {
+    apiKeyStatusText.textContent = 'Error checking status';
+    apiKeyStatusText.style.color = '#f87171';
+  }
+}
+
+// Save API key
+saveApiKeyBtn.addEventListener('click', async () => {
+  const apiKey = apiKeyInput.value.trim();
+  if (!apiKey) {
+    alert('Please enter an API key');
+    return;
+  }
+  
+  saveApiKeyBtn.disabled = true;
+  saveApiKeyBtn.textContent = 'Saving...';
+  
+  try {
+    const result = await window.snapask.saveApiKey(apiKey);
+    if (result.success) {
+      alert('API key saved successfully!');
+      apiKeyInput.value = '';
+      checkApiKeyStatus();
+      settingsModal.classList.remove('show');
+    } else {
+      alert('Error saving API key: ' + (result.error || 'Unknown error'));
+    }
+  } catch (error) {
+    alert('Error saving API key: ' + error.message);
+  } finally {
+    saveApiKeyBtn.disabled = false;
+    saveApiKeyBtn.textContent = 'Save API Key';
+  }
+});
+
+// Allow Enter key to save
+apiKeyInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !saveApiKeyBtn.disabled) {
+    saveApiKeyBtn.click();
+  }
+});
+

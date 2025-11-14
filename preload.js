@@ -37,6 +37,21 @@ contextBridge.exposeInMainWorld('snapask', {
   // Close app window
   closeAppWindow: () => {
     ipcRenderer.send('close-app-window');
+  },
+  
+  // Save API key
+  saveApiKey: (apiKey) => {
+    return ipcRenderer.invoke('save-api-key', apiKey);
+  },
+  
+  // Get API key
+  getApiKey: () => {
+    return ipcRenderer.invoke('get-api-key');
+  },
+  
+  // Close onboarding window
+  closeOnboarding: () => {
+    ipcRenderer.send('close-onboarding');
   }
 });
 
