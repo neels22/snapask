@@ -76,9 +76,26 @@ class AIService {
       return { success: true, text };
     } catch (error) {
       this.logger.error('AI request failed', error);
+      
+      // Extract error code if available
+      let errorCode = null;
+      if (error.status) {
+        errorCode = error.status;
+      } else if (error.response?.status) {
+        errorCode = error.response.status;
+      }
+      
+      // Add error code to error object for better detection
+      if (errorCode) {
+        error.code = errorCode;
+      }
+      
+      const formattedError = formatUserError(error);
+      
       return {
         success: false,
-        error: formatUserError(error),
+        error: formattedError,
+        errorType: formattedError === 'API_QUOTA_EXCEEDED' ? 'QUOTA_EXCEEDED' : 'GENERAL',
       };
     }
   }

@@ -4,7 +4,7 @@
  * @module ipcHandlers
  */
 
-const { ipcMain } = require('electron');
+const { ipcMain, clipboard } = require('electron');
 const Logger = require('../utils/logger');
 const { IPC_CHANNELS } = require('../config/constants');
 
@@ -112,6 +112,21 @@ function setupIpcHandlers(windowManager, aiService, storageService) {
 
     // Process AI request
     return aiService.generateResponse(prompt, imageDataUrl);
+  });
+
+  /**
+   * Handle copy to clipboard request
+   */
+  ipcMain.handle(IPC_CHANNELS.COPY_TO_CLIPBOARD, (event, text) => {
+    logger.debug('Copy to clipboard requested');
+    try {
+      clipboard.writeText(text);
+      logger.success('Text copied to clipboard');
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to copy to clipboard', error);
+      return { success: false, error: error.message };
+    }
   });
 
   logger.success('IPC handlers setup complete');

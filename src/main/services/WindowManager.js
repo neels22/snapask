@@ -35,8 +35,9 @@ class WindowManager {
 
       const cursorPoint = screen.getCursorScreenPoint();
 
-      // Get preload path
-      const preloadPath = path.join(__dirname, '../../renderer/shared/preload/preload.js');
+      // Get preload path - different for dev vs production
+      const preloadPath =
+        process.env.ELECTRON_PRELOAD_ENTRY || path.join(__dirname, '../../preload/preload.js');
 
       const config = getFloatingWindowConfig(preloadPath);
       const newWindow = new BrowserWindow(config);
@@ -50,22 +51,57 @@ class WindowManager {
       // Set window level to float above everything on current Space
       this.floatingWindow.setAlwaysOnTop(true, 'floating', 1);
 
-      // Load the UI
-      const htmlPath = path.join(__dirname, '../../renderer/popup/popup.html');
-      this.floatingWindow.loadFile(htmlPath);
+      // Load the UI - different for dev vs production
+      if (process.env.ELECTRON_RENDERER_URL) {
+        // Development mode - use dev server
+        const url = `${process.env.ELECTRON_RENDERER_URL}/popup/index.html`;
+        this.logger.debug(`Loading from dev server: ${url}`);
+        this.floatingWindow.loadURL(url);
+      } else {
+        // Production mode - use built files
+        const htmlPath = path.join(__dirname, '../../renderer/popup/index.html');
+        this.logger.debug(`Loading from file: ${htmlPath}`);
+        this.floatingWindow.loadFile(htmlPath);
+      }
 
-      // Show window without stealing focus
+      // Add error handlers
+      this.floatingWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        this.logger.error('Floating window failed to load', { errorCode, errorDescription });
+      });
+
+      this.floatingWindow.webContents.on('did-finish-load', () => {
+        this.logger.debug('Floating window content loaded');
+      });
+
+      // Show window and activate it for input focus
       this.floatingWindow.once('ready-to-show', () => {
         if (this.floatingWindow && !this.floatingWindow.isDestroyed()) {
-          this.floatingWindow.showInactive();
-          this.logger.success('Floating window shown');
+          this.floatingWindow.show();
+          this.floatingWindow.focus();
+          this.logger.success('Floating window shown and focused');
         }
       });
+
+      // Open DevTools in development mode to see any errors
+      if (process.env.NODE_ENV === 'development' || process.env.ELECTRON_RENDERER_URL) {
+        this.floatingWindow.webContents.openDevTools({ mode: 'detach' });
+      }
+
+      // Fallback: Force show window after 2 seconds if ready-to-show doesn't fire
+      setTimeout(() => {
+        if (this.floatingWindow && !this.floatingWindow.isDestroyed() && !this.floatingWindow.isVisible()) {
+          this.logger.warn('Forcing window to show (ready-to-show did not fire)');
+          this.floatingWindow.show();
+          this.floatingWindow.focus();
+        }
+      }, 2000);
 
       // Send screenshot data once loaded
       this.floatingWindow.webContents.once('did-finish-load', () => {
         if (this.floatingWindow && !this.floatingWindow.isDestroyed()) {
+          this.logger.debug('Sending screenshot data to renderer');
           this.floatingWindow.webContents.send(IPC_CHANNELS.SCREENSHOT_CAPTURED, dataUrl);
+          this.logger.debug('Screenshot data sent');
         }
       });
 
@@ -103,7 +139,8 @@ class WindowManager {
       this._closeFloatingWindow();
 
       // Get preload path
-      const preloadPath = path.join(__dirname, '../../renderer/shared/preload/preload.js');
+      const preloadPath =
+        process.env.ELECTRON_PRELOAD_ENTRY || path.join(__dirname, '../../preload/preload.js');
 
       const config = getMainAppWindowConfig(preloadPath);
       this.mainAppWindow = new BrowserWindow(config);
@@ -115,9 +152,15 @@ class WindowManager {
       const y = Math.floor((screenHeight - config.height) / 2);
       this.mainAppWindow.setPosition(x, y);
 
-      // Load the UI
-      const htmlPath = path.join(__dirname, '../../renderer/app/app.html');
-      this.mainAppWindow.loadFile(htmlPath);
+      // Load the UI - different for dev vs production
+      if (process.env.ELECTRON_RENDERER_URL) {
+        // Development mode - use dev server
+        this.mainAppWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}/app/index.html`);
+      } else {
+        // Production mode - use built files
+        const htmlPath = path.join(__dirname, '../../renderer/app/index.html');
+        this.mainAppWindow.loadFile(htmlPath);
+      }
 
       // Show when ready
       this.mainAppWindow.once('ready-to-show', () => {
@@ -169,14 +212,21 @@ class WindowManager {
       this.logger.info('Creating onboarding window');
 
       // Get preload path
-      const preloadPath = path.join(__dirname, '../../renderer/shared/preload/preload.js');
+      const preloadPath =
+        process.env.ELECTRON_PRELOAD_ENTRY || path.join(__dirname, '../../preload/preload.js');
 
       const config = getOnboardingWindowConfig(preloadPath);
       this.onboardingWindow = new BrowserWindow(config);
 
-      // Load the UI
-      const htmlPath = path.join(__dirname, '../../renderer/onboarding/onboarding.html');
-      this.onboardingWindow.loadFile(htmlPath);
+      // Load the UI - different for dev vs production
+      if (process.env.ELECTRON_RENDERER_URL) {
+        // Development mode - use dev server
+        this.onboardingWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}/onboarding/index.html`);
+      } else {
+        // Production mode - use built files
+        const htmlPath = path.join(__dirname, '../../renderer/onboarding/index.html');
+        this.onboardingWindow.loadFile(htmlPath);
+      }
 
       this.onboardingWindow.once('ready-to-show', () => {
         this.onboardingWindow.show();
