@@ -68,6 +68,9 @@ function App() {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       handleAsk();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleClose();
     }
   };
 
