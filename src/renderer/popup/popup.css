@@ -172,6 +172,11 @@ button {
   font-style: italic;
 }
 
+.answer-text.error {
+  color: #f87171;
+  font-weight: 500;
+}
+
 .loading {
   display: inline-block;
   animation: pulse 1.5s ease-in-out infinite;

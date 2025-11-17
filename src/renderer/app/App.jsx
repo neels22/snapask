@@ -45,10 +45,26 @@ function App() {
       // Update the last answer (replace loading message)
       setConversationHistory(prev => {
         const updated = [...prev];
+        let answerText;
+        let isError = false;
+        
+        if (result.success) {
+          answerText = result.text;
+        } else {
+          isError = true;
+          // Check if it's a quota error
+          if (result.error === 'API_QUOTA_EXCEEDED' || result.errorType === 'QUOTA_EXCEEDED') {
+            answerText = '⚠️ API quota limit reached. Please update your API key in settings or check your Google Cloud billing.';
+          } else {
+            answerText = `Error: ${result.error}`;
+          }
+        }
+        
         updated[updated.length - 1] = {
           prompt,
-          answer: result.success ? result.text : `Error: ${result.error}`,
-          loading: false
+          answer: answerText,
+          loading: false,
+          error: isError
         };
         return updated;
       });
@@ -58,7 +74,8 @@ function App() {
         updated[updated.length - 1] = {
           prompt,
           answer: `Error: ${error.message}`,
-          loading: false
+          loading: false,
+          error: true
         };
         return updated;
       });
@@ -187,7 +204,7 @@ function App() {
                   <div className="conversation-item answer">
                     <div className="conversation-item-header-wrapper">
                       <div className="conversation-item-header">SnapAsk</div>
-                      {!item.loading && (
+                      {!item.loading && !item.error && (
                         <button
                           className="copy-btn"
                           onClick={() => handleCopyAnswer(item.answer, index)}
@@ -197,7 +214,7 @@ function App() {
                         </button>
                       )}
                     </div>
-                    <div className={`conversation-item-content ${item.loading ? 'loading' : ''}`} dangerouslySetInnerHTML={{ __html: escapeHtml(item.answer) }} />
+                    <div className={`conversation-item-content ${item.loading ? 'loading' : ''} ${item.error ? 'error' : ''}`} dangerouslySetInnerHTML={{ __html: escapeHtml(item.answer) }} />
                     {copiedIndex === index && (
                       <div className="copy-toast">Copied!</div>
                     )}

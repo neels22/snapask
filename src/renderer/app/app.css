@@ -172,6 +172,11 @@ body {
   word-wrap: break-word;
 }
 
+.conversation-item-content.error {
+  color: #f87171;
+  font-weight: 500;
+}
+
 .input-section {
   padding: 20px;
   background: rgba(0, 0, 0, 0.3);

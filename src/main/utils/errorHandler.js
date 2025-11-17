@@ -38,17 +38,33 @@ const formatUserError = (error) => {
     return error.message;
   }
 
+  const errorMessage = error.message || '';
+  const errorCode = error.code || error.status || '';
+
+  // Check for API key/quota limit errors
+  if (
+    errorCode === 429 || // Rate limit
+    errorCode === 403 || // Forbidden (often quota exceeded)
+    errorMessage.toLowerCase().includes('quota') ||
+    errorMessage.toLowerCase().includes('quota exceeded') ||
+    errorMessage.toLowerCase().includes('rate limit') ||
+    errorMessage.toLowerCase().includes('billing') ||
+    errorMessage.toLowerCase().includes('resource exhausted')
+  ) {
+    return 'API_QUOTA_EXCEEDED'; // Special code for UI to handle
+  }
+
   // Handle specific error types
-  if (error.message.includes('API key')) {
+  if (errorMessage.includes('API key') || errorMessage.includes('API_KEY')) {
     return 'Invalid API key. Please check your configuration.';
   }
-  if (error.message.includes('rate limit')) {
+  if (errorMessage.includes('rate limit')) {
     return 'Rate limit exceeded. Please try again later.';
   }
-  if (error.message.includes('network')) {
+  if (errorMessage.includes('network')) {
     return 'Network error. Please check your connection.';
   }
-  if (error.message.includes('timeout')) {
+  if (errorMessage.includes('timeout')) {
     return 'Request timed out. Please try again.';
   }
 

@@ -53,9 +53,8 @@ function App() {
     try {
       const result = await window.snapask.askAI(prompt, currentScreenshotDataUrl);
       
-      setAnswerClass('answer-text');
-      
       if (result.success) {
+        setAnswerClass('answer-text');
         setAnswerText(result.text);
         
         // Store in conversation history
@@ -65,10 +64,17 @@ function App() {
           timestamp: new Date().toISOString()
         }]);
       } else {
-        setAnswerText(`Error: ${result.error}`);
+        // Check if it's a quota error
+        if (result.error === 'API_QUOTA_EXCEEDED' || result.errorType === 'QUOTA_EXCEEDED') {
+          setAnswerClass('answer-text error');
+          setAnswerText('⚠️ API quota limit reached. Please update your API key in settings or check your Google Cloud billing.');
+        } else {
+          setAnswerClass('answer-text error');
+          setAnswerText(`Error: ${result.error}`);
+        }
       }
     } catch (error) {
-      setAnswerClass('answer-text');
+      setAnswerClass('answer-text error');
       setAnswerText(`Error: ${error.message}`);
     } finally {
       setIsAsking(false);
