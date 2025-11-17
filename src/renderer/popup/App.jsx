@@ -84,7 +84,12 @@ function App() {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      // Cmd+Enter or Ctrl+Enter - Continue in App
+      e.preventDefault();
+      handleContinue();
+    } else if (e.key === 'Enter') {
+      // Regular Enter - Ask
       handleAsk();
     } else if (e.key === 'Escape') {
       e.preventDefault();
@@ -150,7 +155,7 @@ function App() {
           Ask (⏎)
         </button>
         <button className="secondary-btn" onClick={handleContinue}>
-          Continue in App 
+          Continue in App (⌘+⏎)
         </button>
       </div>
       
