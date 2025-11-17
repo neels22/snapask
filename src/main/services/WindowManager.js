@@ -73,11 +73,12 @@ class WindowManager {
         this.logger.debug('Floating window content loaded');
       });
 
-      // Show window without stealing focus
+      // Show window and activate it for input focus
       this.floatingWindow.once('ready-to-show', () => {
         if (this.floatingWindow && !this.floatingWindow.isDestroyed()) {
-          this.floatingWindow.showInactive();
-          this.logger.success('Floating window shown');
+          this.floatingWindow.show();
+          this.floatingWindow.focus();
+          this.logger.success('Floating window shown and focused');
         }
       });
 
@@ -91,6 +92,7 @@ class WindowManager {
         if (this.floatingWindow && !this.floatingWindow.isDestroyed() && !this.floatingWindow.isVisible()) {
           this.logger.warn('Forcing window to show (ready-to-show did not fire)');
           this.floatingWindow.show();
+          this.floatingWindow.focus();
         }
       }, 2000);
 

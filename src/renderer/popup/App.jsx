@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 function App() {
   const [currentScreenshotDataUrl, setCurrentScreenshotDataUrl] = useState(null);
@@ -8,6 +8,7 @@ function App() {
   const [answerClass, setAnswerClass] = useState('answer-text placeholder');
   const [isAsking, setIsAsking] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     if (!window.snapask) {
@@ -20,6 +21,23 @@ function App() {
       setCurrentScreenshotDataUrl(dataUrl);
     });
   }, []);
+
+  // Auto-focus input when popup mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Re-focus input when a new screenshot is received
+  useEffect(() => {
+    if (!currentScreenshotDataUrl) return;
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [currentScreenshotDataUrl]);
 
   const handleClose = () => {
     window.snapask.closeWindow();
@@ -117,6 +135,7 @@ function App() {
       
       <div className="input-container">
         <input 
+          ref={inputRef}
           type="text" 
           value={promptValue}
           onChange={(e) => setPromptValue(e.target.value)}
