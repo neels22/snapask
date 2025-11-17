@@ -124,7 +124,7 @@ function App() {
     <div className="panel">
       <div className="header">
         <div className="title">SnapAsk</div>
-        <button className="close-btn" onClick={handleClose} title="Close (Esc)">×</button>
+        <button className="close-btn" onClick={handleClose} title="Close (Esc)">X (esc)</button>
       </div>
       
       <div className="thumbnail-container" id="thumbnailContainer">
@@ -147,10 +147,10 @@ function App() {
       
       <div className="button-row">
         <button className="primary-btn" onClick={handleAsk} disabled={isAsking}>
-          Ask
+          Ask (⏎)
         </button>
         <button className="secondary-btn" onClick={handleContinue}>
-          Continue in App
+          Continue in App 
         </button>
       </div>
       
