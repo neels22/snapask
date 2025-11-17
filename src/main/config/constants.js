@@ -40,6 +40,7 @@ module.exports = {
     SAVE_API_KEY: 'save-api-key',
     GET_API_KEY: 'get-api-key',
     CLOSE_ONBOARDING: 'close-onboarding',
+    COPY_TO_CLIPBOARD: 'copy-to-clipboard',
   },
 
   // Window positioning

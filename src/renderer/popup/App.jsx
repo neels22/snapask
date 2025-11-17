@@ -7,6 +7,7 @@ function App() {
   const [answerText, setAnswerText] = useState('Your answer will appear here...');
   const [answerClass, setAnswerClass] = useState('answer-text placeholder');
   const [isAsking, setIsAsking] = useState(false);
+  const [showCopied, setShowCopied] = useState(false);
 
   useEffect(() => {
     if (!window.snapask) {
@@ -70,6 +71,24 @@ function App() {
     }
   };
 
+  const handleCopyAnswer = async () => {
+    if (answerClass === 'answer-text placeholder' || answerClass.includes('loading')) {
+      return;
+    }
+    
+    try {
+      const result = await window.snapask.copyToClipboard(answerText);
+      if (result.success) {
+        setShowCopied(true);
+        setTimeout(() => setShowCopied(false), 2000);
+      } else {
+        alert('Failed to copy: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      alert('Failed to copy: ' + error.message);
+    }
+  };
+
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape') {
@@ -114,9 +133,23 @@ function App() {
       </div>
       
       <div className="answer-container">
-        <div className={answerClass}>
-          {answerText}
+        <div className="answer-header">
+          <div className={answerClass}>
+            {answerText}
+          </div>
+          {answerClass === 'answer-text' && (
+            <button
+              className="copy-btn-popup"
+              onClick={handleCopyAnswer}
+              title="Copy answer"
+            >
+              {showCopied ? '✓' : '📋'}
+            </button>
+          )}
         </div>
+        {showCopied && (
+          <div className="copy-toast-popup">Copied!</div>
+        )}
       </div>
     </div>
   );

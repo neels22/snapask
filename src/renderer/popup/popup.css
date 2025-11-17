@@ -199,3 +199,67 @@ button {
   background: rgba(255, 255, 255, 0.3);
 }
 
+/* Copy Button Styles for Popup */
+.answer-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  position: relative;
+}
+
+.copy-btn-popup {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  padding: 0;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.copy-btn-popup:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.copy-btn-popup:active {
+  transform: scale(0.95);
+}
+
+.copy-toast-popup {
+  position: absolute;
+  top: -30px;
+  right: 0;
+  background: rgba(76, 175, 80, 0.9);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  animation: slideDown 0.3s ease-out;
+  z-index: 10;
+}
+
+.answer-container {
+  position: relative;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+

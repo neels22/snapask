@@ -59,10 +59,19 @@ class WindowManager {
         this.floatingWindow.loadURL(url);
       } else {
         // Production mode - use built files
-        const htmlPath = path.join(__dirname, '../renderer/popup/index.html');
+        const htmlPath = path.join(__dirname, '../../renderer/popup/index.html');
         this.logger.debug(`Loading from file: ${htmlPath}`);
         this.floatingWindow.loadFile(htmlPath);
       }
+
+      // Add error handlers
+      this.floatingWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        this.logger.error('Floating window failed to load', { errorCode, errorDescription });
+      });
+
+      this.floatingWindow.webContents.on('did-finish-load', () => {
+        this.logger.debug('Floating window content loaded');
+      });
 
       // Show window without stealing focus
       this.floatingWindow.once('ready-to-show', () => {
@@ -72,10 +81,25 @@ class WindowManager {
         }
       });
 
+      // Open DevTools in development mode to see any errors
+      if (process.env.NODE_ENV === 'development' || process.env.ELECTRON_RENDERER_URL) {
+        this.floatingWindow.webContents.openDevTools({ mode: 'detach' });
+      }
+
+      // Fallback: Force show window after 2 seconds if ready-to-show doesn't fire
+      setTimeout(() => {
+        if (this.floatingWindow && !this.floatingWindow.isDestroyed() && !this.floatingWindow.isVisible()) {
+          this.logger.warn('Forcing window to show (ready-to-show did not fire)');
+          this.floatingWindow.show();
+        }
+      }, 2000);
+
       // Send screenshot data once loaded
       this.floatingWindow.webContents.once('did-finish-load', () => {
         if (this.floatingWindow && !this.floatingWindow.isDestroyed()) {
+          this.logger.debug('Sending screenshot data to renderer');
           this.floatingWindow.webContents.send(IPC_CHANNELS.SCREENSHOT_CAPTURED, dataUrl);
+          this.logger.debug('Screenshot data sent');
         }
       });
 
@@ -132,7 +156,7 @@ class WindowManager {
         this.mainAppWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}/app/index.html`);
       } else {
         // Production mode - use built files
-        const htmlPath = path.join(__dirname, '../renderer/app/index.html');
+        const htmlPath = path.join(__dirname, '../../renderer/app/index.html');
         this.mainAppWindow.loadFile(htmlPath);
       }
 
@@ -198,7 +222,7 @@ class WindowManager {
         this.onboardingWindow.loadURL(`${process.env.ELECTRON_RENDERER_URL}/onboarding/index.html`);
       } else {
         // Production mode - use built files
-        const htmlPath = path.join(__dirname, '../renderer/onboarding/index.html');
+        const htmlPath = path.join(__dirname, '../../renderer/onboarding/index.html');
         this.onboardingWindow.loadFile(htmlPath);
       }
 

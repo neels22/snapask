@@ -9,6 +9,7 @@ function App() {
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [apiKeyStatus, setApiKeyStatus] = useState('Checking...');
   const [apiKeyStatusColor, setApiKeyStatusColor] = useState('#fff');
+  const [copiedIndex, setCopiedIndex] = useState(null);
 
   useEffect(() => {
     // Receive initial data from main process
@@ -128,6 +129,20 @@ function App() {
     }
   };
 
+  const handleCopyAnswer = async (answer, index) => {
+    try {
+      const result = await window.snapask.copyToClipboard(answer);
+      if (result.success) {
+        setCopiedIndex(index);
+        setTimeout(() => setCopiedIndex(null), 2000); // Hide toast after 2 seconds
+      } else {
+        alert('Failed to copy: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      alert('Failed to copy: ' + error.message);
+    }
+  };
+
   return (
     <div className="app-container">
       {/* Header */}
@@ -170,8 +185,22 @@ function App() {
                   </div>
                   {/* Answer */}
                   <div className="conversation-item answer">
-                    <div className="conversation-item-header">SnapAsk</div>
+                    <div className="conversation-item-header-wrapper">
+                      <div className="conversation-item-header">SnapAsk</div>
+                      {!item.loading && (
+                        <button
+                          className="copy-btn"
+                          onClick={() => handleCopyAnswer(item.answer, index)}
+                          title="Copy answer"
+                        >
+                          {copiedIndex === index ? '✓' : '📋'}
+                        </button>
+                      )}
+                    </div>
                     <div className={`conversation-item-content ${item.loading ? 'loading' : ''}`} dangerouslySetInnerHTML={{ __html: escapeHtml(item.answer) }} />
+                    {copiedIndex === index && (
+                      <div className="copy-toast">Copied!</div>
+                    )}
                   </div>
                 </React.Fragment>
               ))

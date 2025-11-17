@@ -52,6 +52,11 @@ contextBridge.exposeInMainWorld('snapask', {
   // Close onboarding window
   closeOnboarding: () => {
     ipcRenderer.send('close-onboarding');
+  },
+  
+  // Copy text to clipboard
+  copyToClipboard: async (text) => {
+    return await ipcRenderer.invoke('copy-to-clipboard', text);
   }
 });
 
