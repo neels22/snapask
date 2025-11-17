@@ -15,8 +15,9 @@ const logger = new Logger('IPCHandlers');
  * @param {WindowManager} windowManager - Window manager instance
  * @param {AIService} aiService - AI service instance
  * @param {StorageService} storageService - Storage service instance
+ * @param {ConversationService} conversationService - Conversation service instance
  */
-function setupIpcHandlers(windowManager, aiService, storageService) {
+function setupIpcHandlers(windowManager, aiService, storageService, conversationService) {
   logger.info('Setting up IPC handlers');
 
   /**
@@ -125,6 +126,121 @@ function setupIpcHandlers(windowManager, aiService, storageService) {
       return { success: true };
     } catch (error) {
       logger.error('Failed to copy to clipboard', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // ============================================
+  // CONVERSATION MANAGEMENT HANDLERS
+  // ============================================
+
+  /**
+   * Save entire conversation (from popup to database)
+   */
+  ipcMain.handle(IPC_CHANNELS.SAVE_CONVERSATION, async (event, conversationData) => {
+    logger.info('Save conversation requested');
+    try {
+      const { screenshot, conversation } = conversationData;
+      
+      if (!screenshot || !conversation || conversation.length === 0) {
+        return { success: false, error: 'Invalid conversation data' };
+      }
+
+      const result = conversationService.saveCompleteConversation(screenshot, conversation);
+      
+      logger.success(`Conversation saved: ${result.id}`);
+      return {
+        success: true,
+        conversationId: result.id,
+        created_at: result.created_at
+      };
+    } catch (error) {
+      logger.error('Failed to save conversation', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  /**
+   * Load all conversations (for list view)
+   */
+  ipcMain.handle(IPC_CHANNELS.LOAD_CONVERSATIONS, async (event, { limit, offset }) => {
+    logger.debug('Load conversations requested', { limit, offset });
+    try {
+      const conversations = conversationService.getAllConversations(limit || 100, offset || 0);
+      return {
+        success: true,
+        conversations
+      };
+    } catch (error) {
+      logger.error('Failed to load conversations', error);
+      return { success: false, error: error.message, conversations: [] };
+    }
+  });
+
+  /**
+   * Load single conversation with all messages
+   */
+  ipcMain.handle(IPC_CHANNELS.LOAD_CONVERSATION, async (event, conversationId) => {
+    logger.info(`Load conversation requested: ${conversationId}`);
+    try {
+      const conversation = conversationService.getConversationWithMessages(conversationId);
+      
+      if (!conversation) {
+        return { success: false, error: 'Conversation not found' };
+      }
+
+      return {
+        success: true,
+        conversation
+      };
+    } catch (error) {
+      logger.error('Failed to load conversation', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  /**
+   * Save individual message to existing conversation
+   */
+  ipcMain.handle(IPC_CHANNELS.SAVE_MESSAGE, async (event, { conversationId, role, content, error }) => {
+    logger.debug(`Save message requested for conversation: ${conversationId}`);
+    try {
+      const result = conversationService.saveMessage(conversationId, role, content, error || false);
+      return {
+        success: true,
+        messageId: result.id,
+        timestamp: result.timestamp
+      };
+    } catch (err) {
+      logger.error('Failed to save message', err);
+      return { success: false, error: err.message };
+    }
+  });
+
+  /**
+   * Delete conversation
+   */
+  ipcMain.handle(IPC_CHANNELS.DELETE_CONVERSATION, async (event, conversationId) => {
+    logger.info(`Delete conversation requested: ${conversationId}`);
+    try {
+      conversationService.deleteConversation(conversationId);
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to delete conversation', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  /**
+   * Update conversation properties
+   */
+  ipcMain.handle(IPC_CHANNELS.UPDATE_CONVERSATION, async (event, { conversationId, updates }) => {
+    logger.debug(`Update conversation requested: ${conversationId}`);
+    try {
+      conversationService.updateConversation(conversationId, updates);
+      return { success: true };
+    } catch (error) {
+      logger.error('Failed to update conversation', error);
       return { success: false, error: error.message };
     }
   });
