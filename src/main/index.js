@@ -14,6 +14,8 @@ const AIService = require('./services/AIService');
 const WindowManager = require('./services/WindowManager');
 const ScreenshotService = require('./services/ScreenshotService');
 const StorageService = require('./services/StorageService');
+const DatabaseService = require('./services/DatabaseService');
+const ConversationService = require('./services/ConversationService');
 
 // Handlers
 const { setupIpcHandlers, removeIpcHandlers } = require('./handlers/ipcHandlers');
@@ -27,6 +29,8 @@ const aiService = new AIService();
 const windowManager = new WindowManager();
 const screenshotService = new ScreenshotService();
 const storageService = new StorageService();
+const databaseService = new DatabaseService();
+let conversationService = null; // Initialized after database is ready
 
 /**
  * Initialize application on ready
@@ -34,6 +38,16 @@ const storageService = new StorageService();
 app.whenReady().then(() => {
   try {
     logger.success('SnapAsk is ready!');
+
+    // Initialize database
+    try {
+      databaseService.initialize();
+      conversationService = new ConversationService(databaseService);
+      logger.success('Database services initialized');
+    } catch (dbError) {
+      logger.error('Failed to initialize database (non-critical)', dbError);
+      // App can continue without database, but conversations won't be saved
+    }
 
     // Check if user has completed onboarding
     const hasCompletedOnboarding = storageService.hasCompletedOnboarding();
@@ -47,8 +61,8 @@ app.whenReady().then(() => {
       aiService.initialize(apiKey);
     }
 
-    // Setup IPC handlers
-    setupIpcHandlers(windowManager, aiService, storageService);
+    // Setup IPC handlers (pass conversationService)
+    setupIpcHandlers(windowManager, aiService, storageService, conversationService);
 
     // Setup global shortcuts
     setupShortcuts(screenshotService, windowManager, storageService, aiService);
@@ -67,6 +81,15 @@ app.on('will-quit', () => {
   logger.info('Application quitting');
   unregisterShortcuts();
   removeIpcHandlers();
+  
+  // Close database connection
+  if (databaseService) {
+    try {
+      databaseService.close();
+    } catch (error) {
+      logger.error('Error closing database', error);
+    }
+  }
 });
 
 /**

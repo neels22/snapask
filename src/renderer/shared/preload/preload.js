@@ -57,6 +57,40 @@ contextBridge.exposeInMainWorld('snapask', {
   // Copy text to clipboard
   copyToClipboard: async (text) => {
     return await ipcRenderer.invoke('copy-to-clipboard', text);
+  },
+  
+  // ============================================
+  // CONVERSATION MANAGEMENT
+  // ============================================
+  
+  // Save entire conversation to database
+  saveConversation: async (conversationData) => {
+    return await ipcRenderer.invoke('save-conversation', conversationData);
+  },
+  
+  // Load all conversations
+  loadConversations: async (limit = 100, offset = 0) => {
+    return await ipcRenderer.invoke('load-conversations', { limit, offset });
+  },
+  
+  // Load single conversation with messages
+  loadConversation: async (conversationId) => {
+    return await ipcRenderer.invoke('load-conversation', conversationId);
+  },
+  
+  // Save individual message
+  saveMessage: async (conversationId, role, content, error = false) => {
+    return await ipcRenderer.invoke('save-message', { conversationId, role, content, error });
+  },
+  
+  // Delete conversation
+  deleteConversation: async (conversationId) => {
+    return await ipcRenderer.invoke('delete-conversation', conversationId);
+  },
+  
+  // Update conversation properties
+  updateConversation: async (conversationId, updates) => {
+    return await ipcRenderer.invoke('update-conversation', { conversationId, updates });
   }
 });
 

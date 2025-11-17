@@ -29,6 +29,12 @@ module.exports = {
     HAS_COMPLETED_ONBOARDING: 'hasCompletedOnboarding',
   },
 
+  // Database Configuration
+  DATABASE: {
+    NAME: 'conversations.db',
+    VERSION: 1,
+  },
+
   // IPC Channels
   IPC_CHANNELS: {
     SCREENSHOT_CAPTURED: 'screenshot-captured',
@@ -41,6 +47,13 @@ module.exports = {
     GET_API_KEY: 'get-api-key',
     CLOSE_ONBOARDING: 'close-onboarding',
     COPY_TO_CLIPBOARD: 'copy-to-clipboard',
+    // Conversation Management
+    SAVE_CONVERSATION: 'save-conversation',
+    LOAD_CONVERSATIONS: 'load-conversations',
+    LOAD_CONVERSATION: 'load-conversation',
+    SAVE_MESSAGE: 'save-message',
+    DELETE_CONVERSATION: 'delete-conversation',
+    UPDATE_CONVERSATION: 'update-conversation',
   },
 
   // Window positioning

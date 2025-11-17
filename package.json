@@ -33,6 +33,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "better-sqlite3": "^12.4.1",
     "dotenv": "^17.2.3",
     "electron-store": "^8.1.0",
     "react": "^19.2.0",

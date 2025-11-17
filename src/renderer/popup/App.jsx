@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 function App() {
   const [currentScreenshotDataUrl, setCurrentScreenshotDataUrl] = useState(null);
   const [currentConversation, setCurrentConversation] = useState([]);
+  const [conversationId, setConversationId] = useState(null);
   const [promptValue, setPromptValue] = useState('');
   const [answerText, setAnswerText] = useState('Your answer will appear here...');
   const [answerClass, setAnswerClass] = useState('answer-text placeholder');
@@ -58,24 +59,76 @@ function App() {
         setAnswerText(result.text);
         
         // Store in conversation history
-        setCurrentConversation([...currentConversation, {
+        const newConversation = [...currentConversation, {
           prompt: prompt,
           answer: result.text,
-          timestamp: new Date().toISOString()
-        }]);
+          timestamp: new Date().toISOString(),
+          error: false
+        }];
+        setCurrentConversation(newConversation);
+        
+        // Save to database
+        try {
+          if (!conversationId) {
+            // Create new conversation in database
+            const saveResult = await window.snapask.saveConversation({
+              screenshot: currentScreenshotDataUrl,
+              conversation: newConversation
+            });
+            
+            if (saveResult.success) {
+              setConversationId(saveResult.conversationId);
+              console.log('Conversation saved to database:', saveResult.conversationId);
+            } else {
+              console.warn('Failed to save conversation:', saveResult.error);
+            }
+          } else {
+            // Add messages to existing conversation
+            await window.snapask.saveMessage(conversationId, 'user', prompt, false);
+            await window.snapask.saveMessage(conversationId, 'assistant', result.text, false);
+            console.log('Messages added to conversation:', conversationId);
+          }
+        } catch (dbError) {
+          console.error('Database error (non-critical):', dbError);
+          // Don't block user flow if DB save fails
+        }
       } else {
+        let errorMessage;
+        const isError = true;
+        
         // Check if it's a quota error
         if (result.error === 'API_QUOTA_EXCEEDED' || result.errorType === 'QUOTA_EXCEEDED') {
           setAnswerClass('answer-text error');
-          setAnswerText('⚠️ API quota limit reached. Please update your API key in settings or check your Google Cloud billing.');
+          errorMessage = '⚠️ API quota limit reached. Please update your API key in settings or check your Google Cloud billing.';
+          setAnswerText(errorMessage);
         } else {
           setAnswerClass('answer-text error');
-          setAnswerText(`Error: ${result.error}`);
+          errorMessage = `Error: ${result.error}`;
+          setAnswerText(errorMessage);
         }
+        
+        // Save error to conversation
+        const newConversation = [...currentConversation, {
+          prompt: prompt,
+          answer: errorMessage,
+          timestamp: new Date().toISOString(),
+          error: isError
+        }];
+        setCurrentConversation(newConversation);
       }
     } catch (error) {
+      const errorMessage = `Error: ${error.message}`;
       setAnswerClass('answer-text error');
-      setAnswerText(`Error: ${error.message}`);
+      setAnswerText(errorMessage);
+      
+      // Save error to conversation
+      const newConversation = [...currentConversation, {
+        prompt: prompt,
+        answer: errorMessage,
+        timestamp: new Date().toISOString(),
+        error: true
+      }];
+      setCurrentConversation(newConversation);
     } finally {
       setIsAsking(false);
     }
@@ -83,6 +136,7 @@ function App() {
 
   const handleContinue = () => {
     const data = {
+      conversationId: conversationId,  // Pass conversation ID if available
       screenshot: currentScreenshotDataUrl,
       conversation: currentConversation
     };

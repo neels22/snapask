@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 function App() {
   const [currentScreenshotDataUrl, setCurrentScreenshotDataUrl] = useState(null);
   const [conversationHistory, setConversationHistory] = useState([]);
+  const [conversationId, setConversationId] = useState(null);
   const [promptValue, setPromptValue] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -13,9 +14,69 @@ function App() {
 
   useEffect(() => {
     // Receive initial data from main process
-    window.snapask.onAppData((data) => {
-      setCurrentScreenshotDataUrl(data.screenshot);
-      setConversationHistory(data.conversation || []);
+    window.snapask.onAppData(async (data) => {
+      if (data.conversationId) {
+        // Load existing conversation from database
+        console.log('Loading conversation from database:', data.conversationId);
+        try {
+          const result = await window.snapask.loadConversation(data.conversationId);
+          if (result.success && result.conversation) {
+            setConversationId(result.conversation.id);
+            setCurrentScreenshotDataUrl(result.conversation.screenshot_data_url);
+            
+            // Convert messages to conversation history format
+            const history = [];
+            const messages = result.conversation.messages || [];
+            
+            for (let i = 0; i < messages.length; i += 2) {
+              const userMsg = messages[i];
+              const assistantMsg = messages[i + 1];
+              
+              if (userMsg && assistantMsg) {
+                history.push({
+                  prompt: userMsg.content,
+                  answer: assistantMsg.content,
+                  loading: false,
+                  error: assistantMsg.error
+                });
+              }
+            }
+            
+            setConversationHistory(history);
+            console.log('Loaded conversation with', history.length, 'messages');
+          } else {
+            console.warn('Failed to load conversation:', result.error);
+            // Fallback to data from popup
+            setCurrentScreenshotDataUrl(data.screenshot);
+            setConversationHistory(data.conversation || []);
+          }
+        } catch (error) {
+          console.error('Error loading conversation:', error);
+          // Fallback to data from popup
+          setCurrentScreenshotDataUrl(data.screenshot);
+          setConversationHistory(data.conversation || []);
+        }
+      } else {
+        // New conversation from popup (no ID yet)
+        setCurrentScreenshotDataUrl(data.screenshot);
+        setConversationHistory(data.conversation || []);
+        
+        // If conversation exists, save it to database
+        if (data.conversation && data.conversation.length > 0 && data.screenshot) {
+          try {
+            const saveResult = await window.snapask.saveConversation({
+              screenshot: data.screenshot,
+              conversation: data.conversation
+            });
+            if (saveResult.success) {
+              setConversationId(saveResult.conversationId);
+              console.log('Saved conversation to database:', saveResult.conversationId);
+            }
+          } catch (error) {
+            console.error('Error saving conversation:', error);
+          }
+        }
+      }
     });
   }, []);
 
@@ -66,21 +127,57 @@ function App() {
           loading: false,
           error: isError
         };
+        
+        // Save to database
+        saveMessageToDatabase(prompt, answerText, isError);
+        
         return updated;
       });
     } catch (error) {
       setConversationHistory(prev => {
         const updated = [...prev];
+        const errorMessage = `Error: ${error.message}`;
         updated[updated.length - 1] = {
           prompt,
-          answer: `Error: ${error.message}`,
+          answer: errorMessage,
           loading: false,
           error: true
         };
+        
+        // Save error to database
+        saveMessageToDatabase(prompt, errorMessage, true);
+        
         return updated;
       });
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const saveMessageToDatabase = async (prompt, answer, isError) => {
+    try {
+      if (!conversationId) {
+        // Create new conversation
+        const saveResult = await window.snapask.saveConversation({
+          screenshot: currentScreenshotDataUrl,
+          conversation: [{ prompt, answer, error: isError }]
+        });
+        
+        if (saveResult.success) {
+          setConversationId(saveResult.conversationId);
+          console.log('Created new conversation:', saveResult.conversationId);
+        } else {
+          console.warn('Failed to create conversation:', saveResult.error);
+        }
+      } else {
+        // Add messages to existing conversation
+        await window.snapask.saveMessage(conversationId, 'user', prompt, false);
+        await window.snapask.saveMessage(conversationId, 'assistant', answer, isError);
+        console.log('Saved messages to conversation:', conversationId);
+      }
+    } catch (dbError) {
+      console.error('Database error (non-critical):', dbError);
+      // Don't block user flow if DB save fails
     }
   };
 
