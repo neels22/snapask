@@ -11,8 +11,35 @@ function App() {
   const [apiKeyStatus, setApiKeyStatus] = useState('Checking...');
   const [apiKeyStatusColor, setApiKeyStatusColor] = useState('#fff');
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [conversationsList, setConversationsList] = useState([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState(null);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+
+  // Load conversations list for sidebar
+  const loadConversationsList = async () => {
+    setLoadingConversations(true);
+    try {
+      const result = await window.snapask.loadConversations(100, 0);
+      if (result.success) {
+        setConversationsList(result.conversations || []);
+      } else {
+        console.error('Failed to load conversations:', result.error);
+        setConversationsList([]);
+      }
+    } catch (error) {
+      console.error('Error loading conversations:', error);
+      setConversationsList([]);
+    } finally {
+      setLoadingConversations(false);
+    }
+  };
 
   useEffect(() => {
+    // Load conversations list on mount
+    loadConversationsList();
+
     // Receive initial data from main process
     window.snapask.onAppData(async (data) => {
       if (data.conversationId) {
@@ -166,6 +193,8 @@ function App() {
         if (saveResult.success) {
           setConversationId(saveResult.conversationId);
           console.log('Created new conversation:', saveResult.conversationId);
+          // Refresh conversations list to show new conversation
+          loadConversationsList();
         } else {
           console.warn('Failed to create conversation:', saveResult.error);
         }
@@ -257,19 +286,158 @@ function App() {
     }
   };
 
+  const handleDeleteConversation = (conversationId) => {
+    setConversationToDelete(conversationId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!conversationToDelete) return;
+
+    try {
+      const result = await window.snapask.deleteConversation(conversationToDelete);
+      if (result.success) {
+        // Refresh conversations list
+        await loadConversationsList();
+        
+        // If deleted conversation is currently open, clear the view
+        if (conversationId === conversationToDelete) {
+          setConversationId(null);
+          setConversationHistory([]);
+          setCurrentScreenshotDataUrl(null);
+        }
+        
+        setShowDeleteConfirm(false);
+        setConversationToDelete(null);
+      } else {
+        alert('Failed to delete conversation: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      alert('Error deleting conversation: ' + error.message);
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setConversationToDelete(null);
+  };
+
+  const handleConversationClick = async (conversationId) => {
+    try {
+      const result = await window.snapask.loadConversation(conversationId);
+      if (result.success && result.conversation) {
+        setConversationId(result.conversation.id);
+        setCurrentScreenshotDataUrl(result.conversation.screenshot_data_url);
+        
+        // Convert messages to conversation history format
+        const history = [];
+        const messages = result.conversation.messages || [];
+        
+        for (let i = 0; i < messages.length; i += 2) {
+          const userMsg = messages[i];
+          const assistantMsg = messages[i + 1];
+          
+          if (userMsg && assistantMsg) {
+            history.push({
+              prompt: userMsg.content,
+              answer: assistantMsg.content,
+              loading: false,
+              error: assistantMsg.error
+            });
+          }
+        }
+        
+        setConversationHistory(history);
+        setSidebarOpen(false); // Close sidebar after selecting conversation
+        // Refresh conversations list to update active state
+        loadConversationsList();
+      } else {
+        alert('Failed to load conversation: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      alert('Error loading conversation: ' + error.message);
+    }
+  };
+
+  const formatTimestamp = (timestamp) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString();
+  };
+
   return (
     <div className="app-container">
       {/* Header */}
       <div className="app-header">
         <h1 className="app-title">SnapAsk</h1>
         <div className="header-buttons">
+          <button className="sidebar-toggle-btn" onClick={() => setSidebarOpen(!sidebarOpen)} title="Toggle Conversations">
+            {sidebarOpen ? '✕' : '☰'}
+          </button>
           <button className="settings-btn" onClick={handleOpenSettings} title="Settings">⚙️</button>
           <button className="close-btn" onClick={handleClose} title="Close">×</button>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="app-content">
+      {/* Main Layout: Sidebar + Content */}
+      <div className="app-main-layout">
+        {/* Sidebar */}
+        {sidebarOpen && (
+          <div className="sidebar">
+            <div className="sidebar-header">
+              <h2 className="sidebar-title">Conversations</h2>
+              <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)} title="Close sidebar">×</button>
+            </div>
+            <div className="sidebar-list">
+              {loadingConversations ? (
+                <div className="sidebar-empty">Loading conversations...</div>
+              ) : conversationsList.length === 0 ? (
+                <div className="sidebar-empty">No conversations yet</div>
+              ) : (
+                conversationsList.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`sidebar-item ${conversationId === conv.id ? 'active' : ''}`}
+                    onClick={() => handleConversationClick(conv.id)}
+                  >
+                    <div className="sidebar-item-content">
+                      <div className="sidebar-item-title">{conv.title || 'Untitled Conversation'}</div>
+                      {conv.preview && (
+                        <div className="sidebar-item-preview">{conv.preview}</div>
+                      )}
+                      <div className="sidebar-item-meta">
+                        {formatTimestamp(conv.updated_at)}
+                        {conv.message_count > 0 && ` • ${conv.message_count} message${conv.message_count !== 1 ? 's' : ''}`}
+                      </div>
+                    </div>
+                    <div className="sidebar-item-actions" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDeleteConversation(conv.id)}
+                        title="Delete conversation"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Main Content Area */}
+        <div className="app-content">
         {/* Screenshot Display */}
         <div className="screenshot-section">
           <div className="screenshot-container">
@@ -340,6 +508,7 @@ function App() {
             </button>
           </div>
         </div>
+        </div>
       </div>
 
       {/* Settings Modal */}
@@ -374,6 +543,28 @@ function App() {
                   Save API Key
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="delete-confirm-modal show" onClick={(e) => e.target.className.includes('delete-confirm-modal') && cancelDelete()}>
+          <div className="delete-confirm-content">
+            <div className="delete-confirm-header">
+              <h2>Delete Conversation?</h2>
+            </div>
+            <div className="delete-confirm-body">
+              <p>Are you sure you want to delete this conversation? This action cannot be undone.</p>
+            </div>
+            <div className="delete-confirm-buttons">
+              <button className="delete-cancel-btn" onClick={cancelDelete}>
+                Cancel
+              </button>
+              <button className="delete-confirm-btn" onClick={confirmDelete}>
+                Delete
+              </button>
             </div>
           </div>
         </div>
