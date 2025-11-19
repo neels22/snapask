@@ -17,28 +17,56 @@ function App() {
   const [conversationToDelete, setConversationToDelete] = useState(null);
   const [loadingConversations, setLoadingConversations] = useState(false);
 
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'starred', 'archived'
+  const [hasMoreConversations, setHasMoreConversations] = useState(true);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [conversationToRename, setConversationToRename] = useState(null);
+  const [newTitle, setNewTitle] = useState('');
+
   // Load conversations list for sidebar
-  const loadConversationsList = async () => {
+  const loadConversationsList = async (reset = false) => {
+    if (loadingConversations) return;
+
     setLoadingConversations(true);
     try {
-      const result = await window.snapask.loadConversations(100, 0);
+      const offset = reset ? 0 : conversationsList.length;
+      const limit = 20; // Smaller limit for better UX with "Load More"
+
+      const filters = {};
+      if (activeFilter === 'starred') filters.starred = true;
+      if (activeFilter === 'archived') filters.archived = true;
+
+      const result = await window.snapask.loadConversations(limit, offset, filters);
+
       if (result.success) {
-        setConversationsList(result.conversations || []);
+        const newConversations = result.conversations || [];
+        if (reset) {
+          setConversationsList(newConversations);
+        } else {
+          setConversationsList(prev => [...prev, ...newConversations]);
+        }
+        setHasMoreConversations(newConversations.length === limit);
       } else {
         console.error('Failed to load conversations:', result.error);
-        setConversationsList([]);
+        if (reset) setConversationsList([]);
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
-      setConversationsList([]);
+      if (reset) setConversationsList([]);
     } finally {
       setLoadingConversations(false);
     }
   };
 
+  // Reload when filter changes
+  useEffect(() => {
+    loadConversationsList(true);
+  }, [activeFilter]);
+
   useEffect(() => {
     // Load conversations list on mount
-    loadConversationsList();
+    // Load conversations list on mount - REMOVED to avoid double loading
+    // loadConversationsList();
 
     // Receive initial data from main process
     window.snapask.onAppData(async (data) => {
@@ -50,15 +78,15 @@ function App() {
           if (result.success && result.conversation) {
             setConversationId(result.conversation.id);
             setCurrentScreenshotDataUrl(result.conversation.screenshot_data_url);
-            
+
             // Convert messages to conversation history format
             const history = [];
             const messages = result.conversation.messages || [];
-            
+
             for (let i = 0; i < messages.length; i += 2) {
               const userMsg = messages[i];
               const assistantMsg = messages[i + 1];
-              
+
               if (userMsg && assistantMsg) {
                 history.push({
                   prompt: userMsg.content,
@@ -68,7 +96,7 @@ function App() {
                 });
               }
             }
-            
+
             setConversationHistory(history);
             console.log('Loaded conversation with', history.length, 'messages');
           } else {
@@ -87,7 +115,7 @@ function App() {
         // New conversation from popup (no ID yet)
         setCurrentScreenshotDataUrl(data.screenshot);
         setConversationHistory(data.conversation || []);
-        
+
         // If conversation exists, save it to database
         if (data.conversation && data.conversation.length > 0 && data.screenshot) {
           try {
@@ -119,23 +147,23 @@ function App() {
 
   const handleSend = async () => {
     const prompt = promptValue.trim() || 'Explain this image';
-    
+
     setIsSending(true);
     setPromptValue('');
-    
+
     // Add prompt to conversation immediately with loading answer
     const newConversation = [...conversationHistory, { prompt, answer: 'Thinking...', loading: true }];
     setConversationHistory(newConversation);
-    
+
     try {
       const result = await window.snapask.askAI(prompt, currentScreenshotDataUrl);
-      
+
       // Update the last answer (replace loading message)
       setConversationHistory(prev => {
         const updated = [...prev];
         let answerText;
         let isError = false;
-        
+
         if (result.success) {
           answerText = result.text;
         } else {
@@ -147,17 +175,17 @@ function App() {
             answerText = `Error: ${result.error}`;
           }
         }
-        
+
         updated[updated.length - 1] = {
           prompt,
           answer: answerText,
           loading: false,
           error: isError
         };
-        
+
         // Save to database
         saveMessageToDatabase(prompt, answerText, isError);
-        
+
         return updated;
       });
     } catch (error) {
@@ -170,10 +198,10 @@ function App() {
           loading: false,
           error: true
         };
-        
+
         // Save error to database
         saveMessageToDatabase(prompt, errorMessage, true);
-        
+
         return updated;
       });
     } finally {
@@ -189,7 +217,7 @@ function App() {
           screenshot: currentScreenshotDataUrl,
           conversation: [{ prompt, answer, error: isError }]
         });
-        
+
         if (saveResult.success) {
           setConversationId(saveResult.conversationId);
           console.log('Created new conversation:', saveResult.conversationId);
@@ -250,7 +278,7 @@ function App() {
       alert('Please enter an API key');
       return;
     }
-    
+
     try {
       const result = await window.snapask.saveApiKey(apiKey);
       if (result.success) {
@@ -297,16 +325,16 @@ function App() {
     try {
       const result = await window.snapask.deleteConversation(conversationToDelete);
       if (result.success) {
-        // Refresh conversations list
-        await loadConversationsList();
-        
+        // Refresh conversations list (reset to ensure clean state)
+        await loadConversationsList(true);
+
         // If deleted conversation is currently open, clear the view
         if (conversationId === conversationToDelete) {
           setConversationId(null);
           setConversationHistory([]);
           setCurrentScreenshotDataUrl(null);
         }
-        
+
         setShowDeleteConfirm(false);
         setConversationToDelete(null);
       } else {
@@ -328,15 +356,15 @@ function App() {
       if (result.success && result.conversation) {
         setConversationId(result.conversation.id);
         setCurrentScreenshotDataUrl(result.conversation.screenshot_data_url);
-        
+
         // Convert messages to conversation history format
         const history = [];
         const messages = result.conversation.messages || [];
-        
+
         for (let i = 0; i < messages.length; i += 2) {
           const userMsg = messages[i];
           const assistantMsg = messages[i + 1];
-          
+
           if (userMsg && assistantMsg) {
             history.push({
               prompt: userMsg.content,
@@ -346,9 +374,9 @@ function App() {
             });
           }
         }
-        
+
         setConversationHistory(history);
-        setSidebarOpen(false); // Close sidebar after selecting conversation
+        // setSidebarOpen(false); // Keep sidebar open for better desktop UX
         // Refresh conversations list to update active state
         loadConversationsList();
       } else {
@@ -356,6 +384,76 @@ function App() {
       }
     } catch (error) {
       alert('Error loading conversation: ' + error.message);
+    }
+  };
+
+  const handleStar = async (e, conversation) => {
+    e.stopPropagation();
+    try {
+      const newStarredState = conversation.starred !== 1;
+      const result = await window.snapask.updateConversation(conversation.id, { starred: newStarredState ? 1 : 0 });
+
+      if (result.success) {
+        // Optimistic update
+        setConversationsList(prev => prev.map(c =>
+          c.id === conversation.id ? { ...c, starred: newStarredState ? 1 : 0 } : c
+        ));
+
+        // If we are in 'starred' view and unstarring, remove it from list
+        if (activeFilter === 'starred' && !newStarredState) {
+          setConversationsList(prev => prev.filter(c => c.id !== conversation.id));
+        }
+      } else {
+        alert('Failed to star/unstar conversation: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating conversation:', error);
+      alert('Failed to star/unstar conversation: ' + error.message);
+    }
+  };
+
+  const handleArchive = async (e, conversation) => {
+    e.stopPropagation();
+    try {
+      const newArchivedState = conversation.archived !== 1;
+      const result = await window.snapask.updateConversation(conversation.id, { archived: newArchivedState ? 1 : 0 });
+
+      if (result.success) {
+        // Remove from current list (unless we're in a view that should still show it)
+        // If in 'all' or 'starred', archiving hides it.
+        // If in 'archived', unarchiving hides it.
+        setConversationsList(prev => prev.filter(c => c.id !== conversation.id));
+      } else {
+        alert('Failed to archive/unarchive conversation: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating conversation:', error);
+      alert('Failed to archive/unarchive conversation: ' + error.message);
+    }
+  };
+
+  const handleRename = (e, conversation) => {
+    e.stopPropagation();
+    setConversationToRename(conversation);
+    setNewTitle(conversation.title);
+    setRenameModalOpen(true);
+  };
+
+  const handleSaveRename = async () => {
+    if (!conversationToRename || !newTitle.trim()) return;
+
+    try {
+      const result = await window.snapask.updateConversation(conversationToRename.id, { title: newTitle.trim() });
+      if (result.success) {
+        setConversationsList(prev => prev.map(c =>
+          c.id === conversationToRename.id ? { ...c, title: newTitle.trim() } : c
+        ));
+        setRenameModalOpen(false);
+        setConversationToRename(null);
+      }
+    } catch (error) {
+      console.error('Error renaming conversation:', error);
+      alert('Failed to rename conversation');
     }
   };
 
@@ -371,7 +469,7 @@ function App() {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    
+
     return date.toLocaleDateString();
   };
 
@@ -395,42 +493,102 @@ function App() {
         {sidebarOpen && (
           <div className="sidebar">
             <div className="sidebar-header">
-              <h2 className="sidebar-title">Conversations</h2>
-              <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)} title="Close sidebar">×</button>
+              <div className="sidebar-title-row">
+                <h2 className="sidebar-title">Conversations</h2>
+                <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)} title="Close sidebar">×</button>
+              </div>
+              <div className="sidebar-filters">
+                <button
+                  className={`filter-btn ${activeFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setActiveFilter('all')}
+                  title="All Conversations"
+                >
+                  All
+                </button>
+                <button
+                  className={`filter-btn ${activeFilter === 'starred' ? 'active' : ''}`}
+                  onClick={() => setActiveFilter('starred')}
+                  title="Starred"
+                >
+                  ★
+                </button>
+                <button
+                  className={`filter-btn ${activeFilter === 'archived' ? 'active' : ''}`}
+                  onClick={() => setActiveFilter('archived')}
+                  title="Archived"
+                >
+                  Archive
+                </button>
+              </div>
             </div>
             <div className="sidebar-list">
-              {loadingConversations ? (
+              {loadingConversations && conversationsList.length === 0 ? (
                 <div className="sidebar-empty">Loading conversations...</div>
               ) : conversationsList.length === 0 ? (
-                <div className="sidebar-empty">No conversations yet</div>
+                <div className="sidebar-empty">No conversations found</div>
               ) : (
-                conversationsList.map((conv) => (
-                  <div
-                    key={conv.id}
-                    className={`sidebar-item ${conversationId === conv.id ? 'active' : ''}`}
-                    onClick={() => handleConversationClick(conv.id)}
-                  >
-                    <div className="sidebar-item-content">
-                      <div className="sidebar-item-title">{conv.title || 'Untitled Conversation'}</div>
-                      {conv.preview && (
-                        <div className="sidebar-item-preview">{conv.preview}</div>
-                      )}
-                      <div className="sidebar-item-meta">
-                        {formatTimestamp(conv.updated_at)}
-                        {conv.message_count > 0 && ` • ${conv.message_count} message${conv.message_count !== 1 ? 's' : ''}`}
+                <>
+                  {conversationsList.map((conv) => (
+                    <div
+                      key={conv.id}
+                      className={`sidebar-item ${conversationId === conv.id ? 'active' : ''}`}
+                      onClick={() => handleConversationClick(conv.id)}
+                    >
+                      <div className="sidebar-item-content">
+                        <div className="sidebar-item-header-row">
+                          <div className="sidebar-item-title">{conv.title || 'Untitled Conversation'}</div>
+                          {conv.starred === 1 && <span className="star-indicator">★</span>}
+                        </div>
+                        {conv.preview && (
+                          <div className="sidebar-item-preview">{conv.preview}</div>
+                        )}
+                        <div className="sidebar-item-meta">
+                          {formatTimestamp(conv.updated_at)}
+                          {conv.message_count > 0 && ` • ${conv.message_count} message${conv.message_count !== 1 ? 's' : ''}`}
+                        </div>
+                      </div>
+                      <div className="sidebar-item-actions" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          className={`action-btn star-btn ${conv.starred === 1 ? 'active' : ''}`}
+                          onClick={(e) => handleStar(e, conv)}
+                          title={conv.starred === 1 ? "Unstar" : "Star"}
+                        >
+                          {conv.starred === 1 ? '★' : '☆'}
+                        </button>
+                        <button
+                          className="action-btn"
+                          onClick={(e) => handleRename(e, conv)}
+                          title="Rename"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          className="action-btn"
+                          onClick={(e) => handleArchive(e, conv)}
+                          title={conv.archived === 1 ? "Unarchive" : "Archive"}
+                        >
+                          {conv.archived === 1 ? '📥' : '📦'}
+                        </button>
+                        <button
+                          className="action-btn delete-btn"
+                          onClick={() => handleDeleteConversation(conv.id)}
+                          title="Delete conversation"
+                        >
+                          🗑️
+                        </button>
                       </div>
                     </div>
-                    <div className="sidebar-item-actions" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        className="delete-btn"
-                        onClick={() => handleDeleteConversation(conv.id)}
-                        title="Delete conversation"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                ))
+                  ))}
+                  {hasMoreConversations && (
+                    <button
+                      className="load-more-btn"
+                      onClick={() => loadConversationsList(false)}
+                      disabled={loadingConversations}
+                    >
+                      {loadingConversations ? 'Loading...' : 'Load More'}
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -438,76 +596,76 @@ function App() {
 
         {/* Main Content Area */}
         <div className="app-content">
-        {/* Screenshot Display */}
-        <div className="screenshot-section">
-          <div className="screenshot-container">
-            {currentScreenshotDataUrl && (
-              <img src={currentScreenshotDataUrl} alt="Screenshot" />
-            )}
+          {/* Screenshot Display */}
+          <div className="screenshot-section">
+            <div className="screenshot-container">
+              {currentScreenshotDataUrl && (
+                <img src={currentScreenshotDataUrl} alt="Screenshot" />
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Conversation History */}
-        <div className="conversation-section">
-          <h2 className="section-title">Conversation</h2>
-          <div className="conversation-list">
-            {conversationHistory.length === 0 ? (
-              <div className="conversation-item">
-                <div className="conversation-item-content" style={{ color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>
-                  No conversation yet. Start by asking a question!
-                </div>
-              </div>
-            ) : (
-              conversationHistory.map((item, index) => (
-                <React.Fragment key={index}>
-                  {/* Prompt */}
-                  <div className="conversation-item prompt">
-                    <div className="conversation-item-header">You</div>
-                    <div className="conversation-item-content" dangerouslySetInnerHTML={{ __html: escapeHtml(item.prompt) }} />
+          {/* Conversation History */}
+          <div className="conversation-section">
+            <h2 className="section-title">Conversation</h2>
+            <div className="conversation-list">
+              {conversationHistory.length === 0 ? (
+                <div className="conversation-item">
+                  <div className="conversation-item-content" style={{ color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>
+                    No conversation yet. Start by asking a question!
                   </div>
-                  {/* Answer */}
-                  <div className="conversation-item answer">
-                    <div className="conversation-item-header-wrapper">
-                      <div className="conversation-item-header">SnapAsk</div>
-                      {!item.loading && !item.error && (
-                        <button
-                          className="copy-btn"
-                          onClick={() => handleCopyAnswer(item.answer, index)}
-                          title="Copy answer"
-                        >
-                          {copiedIndex === index ? '✓' : '📋'}
-                        </button>
+                </div>
+              ) : (
+                conversationHistory.map((item, index) => (
+                  <React.Fragment key={index}>
+                    {/* Prompt */}
+                    <div className="conversation-item prompt">
+                      <div className="conversation-item-header">You</div>
+                      <div className="conversation-item-content" dangerouslySetInnerHTML={{ __html: escapeHtml(item.prompt) }} />
+                    </div>
+                    {/* Answer */}
+                    <div className="conversation-item answer">
+                      <div className="conversation-item-header-wrapper">
+                        <div className="conversation-item-header">SnapAsk</div>
+                        {!item.loading && !item.error && (
+                          <button
+                            className="copy-btn"
+                            onClick={() => handleCopyAnswer(item.answer, index)}
+                            title="Copy answer"
+                          >
+                            {copiedIndex === index ? '✓' : '📋'}
+                          </button>
+                        )}
+                      </div>
+                      <div className={`conversation-item-content ${item.loading ? 'loading' : ''} ${item.error ? 'error' : ''}`} dangerouslySetInnerHTML={{ __html: escapeHtml(item.answer) }} />
+                      {copiedIndex === index && (
+                        <div className="copy-toast">Copied!</div>
                       )}
                     </div>
-                    <div className={`conversation-item-content ${item.loading ? 'loading' : ''} ${item.error ? 'error' : ''}`} dangerouslySetInnerHTML={{ __html: escapeHtml(item.answer) }} />
-                    {copiedIndex === index && (
-                      <div className="copy-toast">Copied!</div>
-                    )}
-                  </div>
-                </React.Fragment>
-              ))
-            )}
+                  </React.Fragment>
+                ))
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Input Area */}
-        <div className="input-section">
-          <div className="input-wrapper">
-            <input
-              className="app-prompt-input"
-              type="text" 
-              value={promptValue}
-              onChange={(e) => setPromptValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask a follow-up question..." 
-              autoComplete="off"
-              disabled={isSending}
-            />
-            <button className="send-btn" onClick={handleSend} disabled={isSending}>
-              Send
-            </button>
+          {/* Input Area */}
+          <div className="input-section">
+            <div className="input-wrapper">
+              <input
+                className="app-prompt-input"
+                type="text"
+                value={promptValue}
+                onChange={(e) => setPromptValue(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask a follow-up question..."
+                autoComplete="off"
+                disabled={isSending}
+              />
+              <button className="send-btn" onClick={handleSend} disabled={isSending}>
+                Send
+              </button>
+            </div>
           </div>
-        </div>
         </div>
       </div>
 
@@ -529,7 +687,7 @@ function App() {
                 </div>
                 <input
                   className="settings-input"
-                  type="password" 
+                  type="password"
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
                   onKeyDown={handleApiKeyKeyDown}
@@ -543,6 +701,37 @@ function App() {
                   Save API Key
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rename Modal */}
+      {renameModalOpen && (
+        <div className="rename-modal show" onClick={(e) => e.target.className.includes('rename-modal') && setRenameModalOpen(false)}>
+          <div className="rename-content">
+            <div className="rename-header">
+              <h2>Rename Conversation</h2>
+              <button className="rename-close-btn" onClick={() => setRenameModalOpen(false)}>×</button>
+            </div>
+            <div className="rename-body">
+              <input
+                className="rename-input"
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Enter conversation title"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveRename()}
+              />
+            </div>
+            <div className="rename-buttons">
+              <button className="rename-cancel-btn" onClick={() => setRenameModalOpen(false)}>
+                Cancel
+              </button>
+              <button className="rename-save-btn" onClick={handleSaveRename}>
+                Save
+              </button>
             </div>
           </div>
         </div>

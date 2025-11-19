@@ -141,13 +141,13 @@ function setupIpcHandlers(windowManager, aiService, storageService, conversation
     logger.info('Save conversation requested');
     try {
       const { screenshot, conversation } = conversationData;
-      
+
       if (!screenshot || !conversation || conversation.length === 0) {
         return { success: false, error: 'Invalid conversation data' };
       }
 
       const result = conversationService.saveCompleteConversation(screenshot, conversation);
-      
+
       logger.success(`Conversation saved: ${result.id}`);
       return {
         success: true,
@@ -163,10 +163,10 @@ function setupIpcHandlers(windowManager, aiService, storageService, conversation
   /**
    * Load all conversations (for list view)
    */
-  ipcMain.handle(IPC_CHANNELS.LOAD_CONVERSATIONS, async (event, { limit, offset }) => {
-    logger.debug('Load conversations requested', { limit, offset });
+  ipcMain.handle(IPC_CHANNELS.LOAD_CONVERSATIONS, async (event, { limit, offset, filters }) => {
+    logger.debug('Load conversations requested', { limit, offset, filters });
     try {
-      const conversations = conversationService.getAllConversations(limit || 100, offset || 0);
+      const conversations = conversationService.getAllConversations(limit || 100, offset || 0, filters || {});
       return {
         success: true,
         conversations
@@ -184,7 +184,7 @@ function setupIpcHandlers(windowManager, aiService, storageService, conversation
     logger.info(`Load conversation requested: ${conversationId}`);
     try {
       const conversation = conversationService.getConversationWithMessages(conversationId);
-      
+
       if (!conversation) {
         return { success: false, error: 'Conversation not found' };
       }

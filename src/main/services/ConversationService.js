@@ -72,7 +72,27 @@ class ConversationService {
    * @param {number} offset - Number of conversations to skip
    * @returns {Array} Array of conversations with metadata
    */
-  getAllConversations(limit = 100, offset = 0) {
+  getAllConversations(limit = 100, offset = 0, filters = {}) {
+    let whereClause = 'WHERE 1=1';
+    const params = [];
+
+    // Handle archived filter
+    if (filters.archived === true) {
+      whereClause += ' AND c.archived = 1';
+    } else if (filters.archived === false) {
+      whereClause += ' AND c.archived = 0';
+    }
+    // If filters.archived is undefined/null, we don't filter by archived status (show all)
+    // But for backward compatibility/default behavior, we usually want to hide archived unless explicitly asked
+    else {
+      whereClause += ' AND c.archived = 0';
+    }
+
+    // Handle starred filter
+    if (filters.starred === true) {
+      whereClause += ' AND c.starred = 1';
+    }
+
     const stmt = this.db.prepare(`
       SELECT 
         c.id,
@@ -84,13 +104,14 @@ class ConversationService {
         (SELECT content FROM messages WHERE conversation_id = c.id AND role = 'user' ORDER BY timestamp ASC LIMIT 1) as first_prompt,
         (SELECT content FROM messages WHERE conversation_id = c.id AND role = 'assistant' ORDER BY timestamp ASC LIMIT 1) as first_answer
       FROM conversations c
-      WHERE c.archived = 0
+      ${whereClause}
       ORDER BY c.updated_at DESC
       LIMIT ? OFFSET ?
     `);
 
-    const conversations = stmt.all(limit, offset);
-    
+    params.push(limit, offset);
+    const conversations = stmt.all(...params);
+
     // Generate titles
     conversations.forEach(c => {
       c.title = this.generateTitle(c.first_prompt || 'Untitled');
@@ -122,7 +143,7 @@ class ConversationService {
    */
   getConversationWithMessages(conversationId) {
     const conversation = this.getConversation(conversationId);
-    
+
     if (!conversation) {
       return null;
     }
@@ -135,7 +156,7 @@ class ConversationService {
     `);
 
     conversation.messages = messagesStmt.all(conversationId);
-    
+
     // Convert messages to the format expected by the UI
     conversation.messages = conversation.messages.map(msg => ({
       id: msg.id,
@@ -224,7 +245,7 @@ class ConversationService {
    */
   generateTitle(firstPrompt) {
     if (!firstPrompt) return 'Untitled Conversation';
-    
+
     // Truncate to first 50 chars
     const title = firstPrompt.trim().substring(0, 50);
     return title.length < firstPrompt.trim().length ? `${title}...` : title;
@@ -247,7 +268,7 @@ class ConversationService {
    */
   saveCompleteConversation(screenshotDataUrl, conversation) {
     const conversationData = this.createConversation(screenshotDataUrl);
-    
+
     // Save all messages
     conversation.forEach(item => {
       this.saveMessage(conversationData.id, 'user', item.prompt, false);
