@@ -90,7 +90,7 @@ app.whenReady().then(() => {
 
     if (process.platform === 'darwin') {
       try {
-        const { image: dockIcon, resolvedPath } = createNativeIcon('image2.icns', 'image2.png');
+        const { image: dockIcon, resolvedPath } = createNativeIcon('image4.icns', 'image6.png');
         app.dock.setIcon(dockIcon);
         logger.debug(`Dock icon set from ${resolvedPath}`);
       } catch (dockError) {

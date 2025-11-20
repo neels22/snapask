@@ -41,7 +41,7 @@
   },
   "build": {
     "mac": {
-      "icon": "resources/icons/image2.icns"
+      "icon": "resources/icons/image4.icns"
     },
     "extraResources": [
       {
