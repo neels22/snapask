@@ -201,6 +201,12 @@ Replace with your preferred combo (e.g., `'CommandOrControl+Shift+X'`).
 - This can happen on multi-monitor setups
 - The app tries to keep windows on-screen; please report if you encounter this
 
+## Branding Assets
+
+- Dock & packaged app icon: `resources/icons/image2.icns`
+- BrowserWindow icon (Windows/Linux, ignored on macOS): `resources/icons/image3.png`
+- Keep the entire `resources/icons` folder when packaging so runtime helpers can resolve the files.
+
 ## Building for Distribution
 
 To create a distributable `.app`:

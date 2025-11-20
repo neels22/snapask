@@ -39,6 +39,17 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },
+  "build": {
+    "mac": {
+      "icon": "resources/icons/image2.icns"
+    },
+    "extraResources": [
+      {
+        "from": "resources/icons",
+        "to": "resources/icons"
+      }
+    ]
+  },
   "lint-staged": {
     "*.js": [
       "eslint --fix",

@@ -5,7 +5,8 @@
  */
 
 require('dotenv').config();
-const { app } = require('electron');
+const path = require('path');
+const { app, nativeImage } = require('electron');
 const Logger = require('./utils/logger');
 const { handleUncaughtError } = require('./utils/errorHandler');
 
@@ -33,11 +34,69 @@ const databaseService = new DatabaseService();
 let conversationService = null; // Initialized after database is ready
 
 /**
+ * Resolve icon path for dev & packaged builds
+ * @param {string} fileName
+ * @returns {string}
+ */
+const getIconPath = (...segments) => {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, ...segments);
+  }
+
+  return path.join(__dirname, '..', '..', ...segments);
+};
+
+/**
+ * Create a native image from disk (with optional fallback)
+ * @param {string} iconFile - relative path under resources/icons
+ * @param {string} [fallbackFile] - optional fallback icon file
+ * @returns {{ image: Electron.NativeImage, resolvedPath: string }}
+ */
+const createNativeIcon = (iconFile, fallbackFile) => {
+  const tryCreate = (file) => {
+    if (!file) {
+      return { image: null, path: null };
+    }
+    const resolvedPath = getIconPath('resources', 'icons', file);
+    const image = nativeImage.createFromPath(resolvedPath);
+    if (!image || image.isEmpty()) {
+      return { image: null, path: resolvedPath };
+    }
+    return { image, path: resolvedPath };
+  };
+
+  let attempt = tryCreate(iconFile);
+  if (!attempt.image && fallbackFile) {
+    attempt = tryCreate(fallbackFile);
+  }
+
+  if (!attempt.image) {
+    const attemptedPaths = [iconFile ? getIconPath('resources', 'icons', iconFile) : null]
+      .concat(fallbackFile ? getIconPath('resources', 'icons', fallbackFile) : null)
+      .filter(Boolean)
+      .join(', ');
+    throw new Error(`Icon files not found or invalid: ${attemptedPaths}`);
+  }
+
+  return { image: attempt.image, resolvedPath: attempt.path };
+};
+
+/**
  * Initialize application on ready
  */
 app.whenReady().then(() => {
   try {
     logger.success('SnapAsk is ready!');
+
+    if (process.platform === 'darwin') {
+      try {
+        const { image: dockIcon, resolvedPath } = createNativeIcon('image2.icns', 'image2.png');
+        app.dock.setIcon(dockIcon);
+        logger.debug(`Dock icon set from ${resolvedPath}`);
+      } catch (dockError) {
+        logger.warn('Failed to set dock icon', dockError);
+      }
+    }
 
     // Initialize database
     try {

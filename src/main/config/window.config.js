@@ -4,7 +4,19 @@
  * @module windowConfig
  */
 
+const path = require('path');
+const { app } = require('electron');
 const { WINDOW_SIZES } = require('./constants');
+
+const getWindowIconPath = () => {
+  const relativePath = ['resources', 'icons', 'image3.png'];
+
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, ...relativePath);
+  }
+
+  return path.join(__dirname, '../../..', ...relativePath);
+};
 
 /**
  * Get common webPreferences configuration
@@ -26,6 +38,7 @@ const getCommonConfig = (preloadPath) => ({
  */
 const getFloatingWindowConfig = (preloadPath) => ({
   ...WINDOW_SIZES.FLOATING,
+  icon: getWindowIconPath(),
   type: 'panel', // Makes it behave like macOS NSPanel - prevents Space switching
   frame: false,
   alwaysOnTop: true,
@@ -45,6 +58,7 @@ const getFloatingWindowConfig = (preloadPath) => ({
  */
 const getMainAppWindowConfig = (preloadPath) => ({
   ...WINDOW_SIZES.MAIN_APP,
+  icon: getWindowIconPath(),
   frame: true,
   backgroundColor: '#1a1a1a',
   show: false,
@@ -58,6 +72,7 @@ const getMainAppWindowConfig = (preloadPath) => ({
  */
 const getOnboardingWindowConfig = (preloadPath) => ({
   ...WINDOW_SIZES.ONBOARDING,
+  icon: getWindowIconPath(),
   frame: true,
   backgroundColor: '#ffffff',
   show: false,
