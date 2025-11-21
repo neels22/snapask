@@ -37,9 +37,9 @@ class AIService {
   }
 
   /**
-   * Generate AI response for image and prompt
-   * @param {string} prompt - User prompt
-   * @param {string} imageDataUrl - Image data URL
+   * Generate AI response for prompt, optionally with image
+   * @param {string} prompt - User prompt (required)
+   * @param {string} [imageDataUrl] - Image data URL (optional)
    * @returns {Promise<{success: boolean, text?: string, error?: string}>}
    */
   async generateResponse(prompt, imageDataUrl) {
@@ -48,27 +48,37 @@ class AIService {
         throw new Error('AI service not initialized. Please set your API key.');
       }
 
-      if (!prompt || !imageDataUrl) {
-        throw new Error('Prompt and image are required');
+      if (!prompt) {
+        throw new Error('Prompt is required');
       }
 
-      this.logger.info('Processing AI request');
+      this.logger.info('Processing AI request', { hasImage: !!imageDataUrl });
 
       const model = this.genAI.getGenerativeModel({ model: AI.MODEL });
 
-      // Convert data URL to base64
-      const base64Image = this._extractBase64(imageDataUrl);
+      // Build content array conditionally based on whether image is provided
+      let content;
+      if (imageDataUrl) {
+        // Convert data URL to base64
+        const base64Image = this._extractBase64(imageDataUrl);
 
-      // Prepare image part
-      const imagePart = {
-        inlineData: {
-          data: base64Image,
-          mimeType: 'image/png',
-        },
-      };
+        // Prepare image part
+        const imagePart = {
+          inlineData: {
+            data: base64Image,
+            mimeType: 'image/png',
+          },
+        };
+
+        // Generate content with image (multimodal)
+        content = [prompt, imagePart];
+      } else {
+        // Generate content without image (text-only)
+        content = [prompt];
+      }
 
       // Generate content
-      const result = await model.generateContent([prompt, imagePart]);
+      const result = await model.generateContent(content);
       const response = await result.response;
       const text = response.text();
 
