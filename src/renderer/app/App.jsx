@@ -63,6 +63,14 @@ function App() {
     loadConversationsList(true);
   }, [activeFilter]);
 
+  // Load conversations when sidebar opens
+  useEffect(() => {
+    if (sidebarOpen && !loadingConversations) {
+      // Always reload when sidebar opens to ensure we have latest data including current conversation
+      loadConversationsList(true);
+    }
+  }, [sidebarOpen]);
+
   useEffect(() => {
     // Load conversations list on mount
     // Load conversations list on mount - REMOVED to avoid double loading
@@ -221,8 +229,10 @@ function App() {
         if (saveResult.success) {
           setConversationId(saveResult.conversationId);
           console.log('Created new conversation:', saveResult.conversationId);
-          // Refresh conversations list to show new conversation
-          loadConversationsList();
+          // Refresh conversations list to show new conversation (reset to show it at top)
+          if (sidebarOpen) {
+            loadConversationsList(true);
+          }
         } else {
           console.warn('Failed to create conversation:', saveResult.error);
         }
@@ -231,6 +241,10 @@ function App() {
         await window.snapask.saveMessage(conversationId, 'user', prompt, false);
         await window.snapask.saveMessage(conversationId, 'assistant', answer, isError);
         console.log('Saved messages to conversation:', conversationId);
+        // Refresh conversations list to update the current conversation's position (it should move to top)
+        if (sidebarOpen) {
+          loadConversationsList(true);
+        }
       }
     } catch (dbError) {
       console.error('Database error (non-critical):', dbError);
@@ -377,8 +391,7 @@ function App() {
 
         setConversationHistory(history);
         // setSidebarOpen(false); // Keep sidebar open for better desktop UX
-        // Refresh conversations list to update active state
-        loadConversationsList();
+        // No need to reload - React will update the active state automatically
       } else {
         alert('Failed to load conversation: ' + (result.error || 'Unknown error'));
       }

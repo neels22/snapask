@@ -17,13 +17,15 @@ class ConversationService {
 
   /**
    * Create a new conversation
-   * @param {string} screenshotDataUrl - Base64 data URL of the screenshot
+   * @param {string|null} [screenshotDataUrl] - Base64 data URL of the screenshot (optional)
    * @returns {Object} Created conversation with id and created_at
    */
   createConversation(screenshotDataUrl) {
     const id = randomUUID();
-    const hash = this.calculateHash(screenshotDataUrl);
     const now = Date.now();
+
+    // Only calculate hash if screenshot is provided
+    const hash = screenshotDataUrl ? this.calculateHash(screenshotDataUrl) : null;
 
     const stmt = this.db.prepare(`
       INSERT INTO conversations 
@@ -31,9 +33,9 @@ class ConversationService {
       VALUES (?, ?, ?, ?, ?, 0)
     `);
 
-    stmt.run(id, screenshotDataUrl, hash, now, now);
+    stmt.run(id, screenshotDataUrl || null, hash, now, now);
 
-    this.logger.info(`Created conversation: ${id}`);
+    this.logger.info(`Created conversation: ${id}`, { hasScreenshot: !!screenshotDataUrl });
     return { id, created_at: now };
   }
 
@@ -262,12 +264,12 @@ class ConversationService {
 
   /**
    * Save a complete conversation (used when migrating from popup to main app)
-   * @param {string} screenshotDataUrl - Screenshot data URL
+   * @param {string|null} [screenshotDataUrl] - Screenshot data URL (optional)
    * @param {Array} conversation - Array of {prompt, answer} objects
    * @returns {Object} Created conversation with id
    */
   saveCompleteConversation(screenshotDataUrl, conversation) {
-    const conversationData = this.createConversation(screenshotDataUrl);
+    const conversationData = this.createConversation(screenshotDataUrl || null);
 
     // Save all messages
     conversation.forEach(item => {

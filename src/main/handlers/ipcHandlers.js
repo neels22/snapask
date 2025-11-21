@@ -142,11 +142,12 @@ function setupIpcHandlers(windowManager, aiService, storageService, conversation
     try {
       const { screenshot, conversation } = conversationData;
 
-      if (!screenshot || !conversation || conversation.length === 0) {
+      // Only require conversation array, screenshot is optional
+      if (!conversation || conversation.length === 0) {
         return { success: false, error: 'Invalid conversation data' };
       }
 
-      const result = conversationService.saveCompleteConversation(screenshot, conversation);
+      const result = conversationService.saveCompleteConversation(screenshot || null, conversation);
 
       logger.success(`Conversation saved: ${result.id}`);
       return {

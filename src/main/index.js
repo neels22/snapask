@@ -162,6 +162,48 @@ app.on('window-all-closed', (e) => {
 });
 
 /**
+ * Handle app activation (dock click on macOS)
+ * Opens the main window when user clicks dock icon
+ */
+app.on('activate', () => {
+  logger.info('App activated (dock click)');
+  
+  // Check if any window is already open
+  const hasMainWindow = windowManager.getMainAppWindow() && !windowManager.getMainAppWindow().isDestroyed();
+  const hasOnboardingWindow = windowManager.getOnboardingWindow() && !windowManager.getOnboardingWindow().isDestroyed();
+  const hasFloatingWindow = windowManager.getFloatingWindow() && !windowManager.getFloatingWindow().isDestroyed();
+  
+  if (hasMainWindow || hasOnboardingWindow || hasFloatingWindow) {
+    // Focus existing window (prioritize main app window)
+    if (hasMainWindow) {
+      logger.debug('Focusing existing main app window');
+      windowManager.getMainAppWindow().focus();
+      windowManager.getMainAppWindow().moveTop();
+    } else if (hasOnboardingWindow) {
+      logger.debug('Focusing existing onboarding window');
+      windowManager.getOnboardingWindow().focus();
+    } else if (hasFloatingWindow) {
+      logger.debug('Focusing existing floating window');
+      windowManager.getFloatingWindow().focus();
+    }
+    return;
+  }
+  
+  // No windows open, check if we should show onboarding or main window
+  const hasCompletedOnboarding = storageService.hasCompletedOnboarding();
+  const apiKey = storageService.getApiKey();
+  
+  if (!hasCompletedOnboarding || !apiKey) {
+    logger.info('Onboarding not complete, showing onboarding window');
+    windowManager.createOnboardingWindow();
+  } else {
+    logger.info('Opening main app window from dock click');
+    // Open main window with no conversation data
+    windowManager.createMainAppWindow(null);
+  }
+});
+
+/**
  * Handle before quit
  */
 app.on('before-quit', () => {
