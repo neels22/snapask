@@ -21,7 +21,6 @@ if (!jest.isMockFunction(dialog.showErrorBox)) {
 
 describe('UpdateService', () => {
   let updateService;
-  let Logger;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -29,9 +28,6 @@ describe('UpdateService', () => {
     
     // Reset app.isPackaged
     app.setPackaged(true);
-    
-    // Get mocked Logger
-    Logger = require('../../utils/logger');
     
     // Reset autoUpdater mock
     if (autoUpdater.reset) {
@@ -198,7 +194,7 @@ describe('UpdateService', () => {
 
     test('should handle errors silently', () => {
       const error = new Error('Update check failed');
-      eventHandlers['error'](error);
+      eventHandlers.error(error);
       expect(updateService.logger.error).toHaveBeenCalledWith('Error in auto-updater:', error);
     });
 

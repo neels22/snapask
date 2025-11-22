@@ -227,7 +227,7 @@ process.on('uncaughtException', (error) => {
 /**
  * Handle unhandled promise rejections
  */
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   logger.error('Unhandled promise rejection', reason);
   handleUncaughtError(reason, 'Unhandled Rejection');
 });

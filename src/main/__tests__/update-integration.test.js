@@ -111,12 +111,12 @@ describe('UpdateService Integration', () => {
       eventHandlers['download-progress']({ percent: 100 });
       
       // Simulate update downloaded
-      const { dialog } = require('electron');
-      dialog.showMessageBox.mockResolvedValue({ response: 1 }); // Later
+      const { dialog: electronDialog } = require('electron');
+      electronDialog.showMessageBox.mockResolvedValue({ response: 1 }); // Later
       
       await eventHandlers['update-downloaded']({ version: '0.4.0' });
       
-      expect(dialog.showMessageBox).toHaveBeenCalled();
+      expect(electronDialog.showMessageBox).toHaveBeenCalled();
     });
 
     test('should handle update not available flow', () => {
@@ -124,17 +124,17 @@ describe('UpdateService Integration', () => {
       eventHandlers['update-not-available']({ version: '0.3.0' });
       
       // Should not show any dialogs
-      const { dialog } = require('electron');
-      expect(dialog.showMessageBox).not.toHaveBeenCalled();
+      const { dialog: electronDialog } = require('electron');
+      expect(electronDialog.showMessageBox).not.toHaveBeenCalled();
     });
 
     test('should handle error flow gracefully', () => {
       const error = new Error('Network error');
-      eventHandlers['error'](error);
+      eventHandlers.error(error);
       
       // Should not crash or show error to user
-      const { dialog } = require('electron');
-      expect(dialog.showMessageBox).not.toHaveBeenCalled();
+      const { dialog: electronDialog } = require('electron');
+      expect(electronDialog.showMessageBox).not.toHaveBeenCalled();
     });
   });
 

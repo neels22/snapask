@@ -37,7 +37,7 @@ class UpdateService {
       // Don't show dialog - download silently in background
     });
 
-    autoUpdater.on('update-not-available', (info) => {
+    autoUpdater.on('update-not-available', () => {
       this.logger.info('Update not available. Current version is latest.');
     });
 

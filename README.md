@@ -11,6 +11,24 @@ An AI-powered screenshot assistant for macOS. Capture any part of your screen wi
 💬 **Floating Chat** - Beautiful chat window appears near your cursor  
 🤖 **Google Gemini AI** - Powered by Gemini 1.5 Flash for instant image analysis  
 🎨 **Native macOS UI** - Blur effects, smooth animations, dark theme  
+💾 **Conversation History** - All conversations saved locally with SQLite  
+🔄 **Auto-Updates** - Seamless automatic updates in the background  
+📱 **Main App Window** - Full-featured app window to continue conversations  
+
+## Installation
+
+### For End Users
+
+1. Download the DMG file from the [latest release](https://github.com/neels22/snapask/releases) or from the distribution link
+2. Open the DMG file
+3. Drag `SnapAsk.app` to your Applications folder
+4. Open SnapAsk from Applications (you may need to right-click and select "Open" the first time due to macOS security)
+5. Follow the onboarding to set up your Gemini API key
+6. Grant Screen Recording permission when prompted
+
+**Note:** The app will automatically check for updates and notify you when new versions are available.
+
+### For Developers
 
 ## Quick Start
 
@@ -176,10 +194,11 @@ Replace with your preferred combo (e.g., `'CommandOrControl+Shift+X'`).
 
 ## Roadmap
 
-- [ ] **AI Integration** - OpenAI, Anthropic, or Google API
+- [x] **AI Integration** - Google Gemini API integration ✅
+- [x] **Conversation History** - Persistent SQLite storage ✅
+- [x] **Full App Window** - "Continue in App" feature ✅
+- [x] **Auto-Updates** - Seamless background updates ✅
 - [ ] **On-device OCR** - Extract text before sending to save tokens
-- [ ] **Conversation History** - Persistent SQLite storage
-- [ ] **Full App Window** - "Continue in App" feature
 - [ ] **Menu Bar Icon** - Tray icon with settings
 - [ ] **Custom Shortcuts** - User-configurable hotkey
 - [ ] **Annotations** - Draw arrows, highlights before asking
@@ -209,37 +228,51 @@ Replace with your preferred combo (e.g., `'CommandOrControl+Shift+X'`).
 
 ## Building for Distribution
 
-To create a distributable `.app`:
+### Build Commands
 
 ```bash
-npm install electron-builder --save-dev
+# Build without publishing (for testing)
+npm run dist
+
+# Build and publish to GitHub Releases (requires GH_TOKEN)
+npm run dist:publish
+
+# Build for macOS only
+npm run build:mac
 ```
 
-Add to `package.json`:
+### Build Configuration
 
-```json
-"build": {
-  "appId": "com.snapask.app",
-  "mac": {
-    "category": "public.app-category.productivity",
-    "hardenedRuntime": true,
-    "entitlements": "entitlements.mac.plist"
-  }
-}
-```
+The app is configured to build for both Intel (x64) and Apple Silicon (arm64) Macs. Builds are automatically published to GitHub Releases for auto-update functionality.
 
-Then build:
+**Requirements for Publishing:**
+- GitHub Personal Access Token with `repo` scope
+- Set `GH_TOKEN` environment variable
+- GitHub repository configured in `package.json`
 
-```bash
-npx electron-builder --mac
-```
+### Auto-Update System
+
+SnapAsk includes automatic updates that work seamlessly:
+- Updates check automatically on startup (after 30 seconds)
+- Periodic checks every 4 hours
+- Downloads happen in the background
+- Users are notified when updates are ready
+- Updates install on app quit or can be restarted immediately
+
+The auto-update system uses GitHub Releases as the update server.
 
 ## Privacy & Security
 
 - Screenshots are **never saved** to disk (clipboard only)
 - Images are sent to your chosen AI provider (not stored elsewhere)
 - All processing happens locally until you click "Ask"
+- Conversation history is stored **locally only** in SQLite database
 - No telemetry or analytics
+- No data is sent to third parties except your chosen AI provider
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history and release notes.
 
 ## License
 

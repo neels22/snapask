@@ -5,7 +5,7 @@
  */
 
 const { execFile } = require('child_process');
-const { clipboard, nativeImage } = require('electron');
+const { clipboard } = require('electron');
 const Logger = require('../utils/logger');
 
 class ScreenshotService {

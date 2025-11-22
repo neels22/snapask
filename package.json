@@ -4,7 +4,7 @@
   "description": "AI-powered screenshot assistant for macOS",
   "main": "out/main/index.js",
   "homepage": "./",
-  "author": "",
+  "author": "Indraneel Sarode <indraneelsarode@gmail.com>",
   "license": "MIT",
   "scripts": {
     "start": "electron-vite preview",
@@ -34,6 +34,7 @@
     "electron-vite": "^4.0.1",
     "eslint": "^8.56.0",
     "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.29.1",
     "husky": "^8.0.3",
     "jest": "^29.7.0",
@@ -88,7 +89,7 @@
     ],
     "publish": {
       "provider": "github",
-      "owner": "YOUR_GITHUB_USERNAME",
+      "owner": "neels22",
       "repo": "snapask",
       "private": true
     }
