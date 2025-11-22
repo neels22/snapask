@@ -75,7 +75,7 @@ class DatabaseService {
     try {
       const stmt = this.db.prepare('SELECT value FROM metadata WHERE key = ?');
       const row = stmt.get('schema_version');
-      return row ? parseInt(row.value) : 0;
+      return row ? parseInt(row.value, 10) : 0;
     } catch {
       return 0;
     }

@@ -115,14 +115,14 @@ class ConversationService {
     const conversations = stmt.all(...params);
 
     // Generate titles
-    conversations.forEach(c => {
-      c.title = this.generateTitle(c.first_prompt || 'Untitled');
-      c.preview = c.first_answer ? c.first_answer.substring(0, 100) : '';
-      delete c.first_prompt;
-      delete c.first_answer;
+    return conversations.map(c => {
+      const conversation = { ...c };
+      conversation.title = this.generateTitle(c.first_prompt || 'Untitled');
+      conversation.preview = c.first_answer ? c.first_answer.substring(0, 100) : '';
+      delete conversation.first_prompt;
+      delete conversation.first_answer;
+      return conversation;
     });
-
-    return conversations;
   }
 
   /**

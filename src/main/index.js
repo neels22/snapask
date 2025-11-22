@@ -17,6 +17,7 @@ const ScreenshotService = require('./services/ScreenshotService');
 const StorageService = require('./services/StorageService');
 const DatabaseService = require('./services/DatabaseService');
 const ConversationService = require('./services/ConversationService');
+const UpdateService = require('./services/UpdateService');
 
 // Handlers
 const { setupIpcHandlers, removeIpcHandlers } = require('./handlers/ipcHandlers');
@@ -31,6 +32,7 @@ const windowManager = new WindowManager();
 const screenshotService = new ScreenshotService();
 const storageService = new StorageService();
 const databaseService = new DatabaseService();
+const updateService = new UpdateService();
 let conversationService = null; // Initialized after database is ready
 
 /**
@@ -125,6 +127,9 @@ app.whenReady().then(() => {
 
     // Setup global shortcuts
     setupShortcuts(screenshotService, windowManager, storageService, aiService);
+
+    // Start auto-update checking (only in production)
+    updateService.startAutoUpdateCheck();
 
     logger.success('Application initialized successfully');
   } catch (error) {
@@ -222,7 +227,7 @@ process.on('uncaughtException', (error) => {
 /**
  * Handle unhandled promise rejections
  */
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   logger.error('Unhandled promise rejection', reason);
   handleUncaughtError(reason, 'Unhandled Rejection');
 });
