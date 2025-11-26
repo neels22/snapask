@@ -13,7 +13,7 @@ module.exports = {
 
   // Global shortcuts
   SHORTCUTS: {
-    SCREENSHOT: 'Control+Alt+Command+S',
+    SCREENSHOT: 'Command+Shift+S',
   },
 
   // AI Configuration
