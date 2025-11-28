@@ -113,13 +113,15 @@ app.whenReady().then(() => {
     // Check if user has completed onboarding
     const hasCompletedOnboarding = storageService.hasCompletedOnboarding();
     const apiKey = storageService.getApiKey();
+    const provider = storageService.getAiProvider() || require('./config/constants').AI.DEFAULT_PROVIDER;
+    const model = storageService.getAiModel() || require('./config/constants').AI.DEFAULT_MODEL;
 
     if (!hasCompletedOnboarding || !apiKey) {
       logger.info('First run detected, showing onboarding');
       windowManager.createOnboardingWindow();
     } else {
-      // Initialize AI with stored key
-      aiService.initialize(apiKey);
+      // Initialize AI with stored key, provider, and model
+      aiService.initialize(provider, apiKey, model);
     }
 
     // Setup IPC handlers (pass conversationService)
@@ -205,6 +207,13 @@ app.on('activate', () => {
     logger.info('Opening main app window from dock click');
     // Open main window with no conversation data
     windowManager.createMainAppWindow(null);
+  }
+  
+  // Ensure AI is initialized if we have an API key
+  if (apiKey && !aiService.isInitialized()) {
+    const provider = storageService.getAiProvider() || require('./config/constants').AI.DEFAULT_PROVIDER;
+    const model = storageService.getAiModel() || require('./config/constants').AI.DEFAULT_MODEL;
+    aiService.initialize(provider, apiKey, model);
   }
 });
 

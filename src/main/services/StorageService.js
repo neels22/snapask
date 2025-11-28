@@ -14,6 +14,8 @@ class StorageService {
       name: 'snapask-config',
       defaults: {
         [STORAGE_KEYS.API_KEY]: null,
+        [STORAGE_KEYS.AI_PROVIDER]: null,
+        [STORAGE_KEYS.AI_MODEL]: null,
         [STORAGE_KEYS.HAS_COMPLETED_ONBOARDING]: false,
       },
     });
@@ -45,6 +47,40 @@ class StorageService {
       this.logger.error('Failed to save API key', error);
       return false;
     }
+  }
+
+  /**
+   * Get AI provider from storage
+   * @returns {string|null} Provider type or null
+   */
+  getAiProvider() {
+    return this.store.get(STORAGE_KEYS.AI_PROVIDER);
+  }
+
+  /**
+   * Save AI provider to storage
+   * @param {string} provider - Provider type
+   */
+  saveAiProvider(provider) {
+    this.store.set(STORAGE_KEYS.AI_PROVIDER, provider);
+    this.logger.info(`AI provider saved: ${provider}`);
+  }
+
+  /**
+   * Get AI model from storage
+   * @returns {string|null} Model name or null
+   */
+  getAiModel() {
+    return this.store.get(STORAGE_KEYS.AI_MODEL);
+  }
+
+  /**
+   * Save AI model to storage
+   * @param {string} model - Model name
+   */
+  saveAiModel(model) {
+    this.store.set(STORAGE_KEYS.AI_MODEL, model);
+    this.logger.info(`AI model saved: ${model}`);
   }
 
   /**

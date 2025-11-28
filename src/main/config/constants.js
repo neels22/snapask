@@ -18,7 +18,42 @@ module.exports = {
 
   // AI Configuration
   AI: {
-    MODEL: 'gemini-2.0-flash',
+    // Default provider and model
+    DEFAULT_PROVIDER: 'google',
+    DEFAULT_MODEL: 'gemini-2.0-flash',
+    
+    // Provider configurations
+    PROVIDERS: {
+      google: {
+        name: 'Google Gemini',
+        models: [
+          { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+          { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+          { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash' },
+        ],
+        supportsImage: true,
+        langchainPackage: '@langchain/google-genai',
+      },
+      openai: {
+        name: 'OpenAI',
+        models: [
+          { id: 'gpt-4o', name: 'GPT-4o' },
+          { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
+          { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
+        ],
+        supportsImage: true,
+        langchainPackage: '@langchain/openai',
+      },
+      anthropic: {
+        name: 'Anthropic Claude',
+        models: [
+          { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+          { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus' },
+        ],
+        supportsImage: true,
+        langchainPackage: '@langchain/anthropic',
+      },
+    },
     TIMEOUT: 30000, // 30 seconds
     MAX_RETRIES: 3,
   },
@@ -26,6 +61,8 @@ module.exports = {
   // Storage keys
   STORAGE_KEYS: {
     API_KEY: 'apiKey',
+    AI_PROVIDER: 'aiProvider',
+    AI_MODEL: 'aiModel',
     HAS_COMPLETED_ONBOARDING: 'hasCompletedOnboarding',
   },
 

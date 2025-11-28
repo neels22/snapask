@@ -6,7 +6,7 @@
 
 const { ipcMain, clipboard } = require('electron');
 const Logger = require('../utils/logger');
-const { IPC_CHANNELS } = require('../config/constants');
+const { IPC_CHANNELS, AI } = require('../config/constants');
 
 const logger = new Logger('IPCHandlers');
 
@@ -64,15 +64,40 @@ function setupIpcHandlers(windowManager, aiService, storageService, conversation
 
   /**
    * Handle save API key request
+   * Accepts either old format (apiKey string) or new format ({ apiKey, provider, model })
    */
-  ipcMain.handle(IPC_CHANNELS.SAVE_API_KEY, async (event, apiKey) => {
+  ipcMain.handle(IPC_CHANNELS.SAVE_API_KEY, async (event, data) => {
     logger.info('Save API key requested');
     try {
+      // Backward compatibility: handle old format (just apiKey string)
+      let apiKey, provider, model;
+      if (typeof data === 'string') {
+        apiKey = data;
+        provider = null;
+        model = null;
+      } else {
+        apiKey = data?.apiKey;
+        provider = data?.provider;
+        model = data?.model;
+      }
+
       const success = storageService.saveApiKey(apiKey);
       if (success) {
+        // Save provider and model if provided
+        if (provider) {
+          storageService.saveAiProvider(provider);
+        }
+        if (model) {
+          storageService.saveAiModel(model);
+        }
+
         storageService.setOnboardingCompleted();
-        // Reinitialize AI with new key
-        aiService.initialize(apiKey);
+
+        // Reinitialize AI with new key, provider, and model
+        const providerType = provider || storageService.getAiProvider() || AI.DEFAULT_PROVIDER;
+        const selectedModel = model || storageService.getAiModel() || AI.DEFAULT_MODEL;
+        aiService.initialize(providerType, apiKey, selectedModel);
+
         logger.success('API key saved and AI initialized');
         return { success: true };
       }
@@ -85,11 +110,21 @@ function setupIpcHandlers(windowManager, aiService, storageService, conversation
 
   /**
    * Handle get API key request
+   * Returns { apiKey, provider, model } object
    */
   ipcMain.handle(IPC_CHANNELS.GET_API_KEY, () => {
     const apiKey = storageService.getApiKey();
-    logger.debug('API key requested', { exists: !!apiKey });
-    return apiKey;
+    const provider = storageService.getAiProvider();
+    const model = storageService.getAiModel();
+    logger.debug('API key requested', { exists: !!apiKey, provider, model });
+    
+    // Backward compatibility: if only apiKey exists, return just the string
+    // Otherwise return object
+    if (apiKey && !provider && !model) {
+      return apiKey;
+    }
+    
+    return { apiKey, provider, model };
   });
 
   /**
@@ -108,7 +143,9 @@ function setupIpcHandlers(windowManager, aiService, storageService, conversation
           error: 'API key not configured. Please restart the app and enter your API key.',
         };
       }
-      aiService.initialize(apiKey);
+      const provider = storageService.getAiProvider() || AI.DEFAULT_PROVIDER;
+      const model = storageService.getAiModel() || AI.DEFAULT_MODEL;
+      aiService.initialize(provider, apiKey, model);
     }
 
     // Process AI request
@@ -244,6 +281,18 @@ function setupIpcHandlers(windowManager, aiService, storageService, conversation
       logger.error('Failed to update conversation', error);
       return { success: false, error: error.message };
     }
+  });
+
+  /**
+   * Get available AI providers and models
+   */
+  ipcMain.handle('get-ai-providers', () => {
+    logger.debug('Get AI providers requested');
+    return {
+      success: true,
+      providers: AI.PROVIDERS,
+      defaultProvider: AI.DEFAULT_PROVIDER,
+    };
   });
 
   logger.success('IPC handlers setup complete');

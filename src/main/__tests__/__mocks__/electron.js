@@ -57,8 +57,25 @@ const mockNativeImage = {
   },
 };
 
+// Create mock functions that can be reassigned in tests
+const createMockIpcMain = () => ({
+  handle: jest.fn(),
+  on: jest.fn(),
+  removeAllListeners: jest.fn(),
+});
+
+const createMockClipboard = () => ({
+  writeText: jest.fn(),
+});
+
+// Export factory functions and default instances
+const mockIpcMain = createMockIpcMain();
+const mockClipboard = createMockClipboard();
+
 module.exports = {
   app: mockApp,
   dialog: mockDialog,
   nativeImage: mockNativeImage,
+  ipcMain: mockIpcMain,
+  clipboard: mockClipboard,
 };
