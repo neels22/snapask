@@ -55,6 +55,9 @@ const formatUserError = (error) => {
   }
 
   // Handle specific error types
+  if (errorMessage.includes('required') || errorMessage.includes('is required')) {
+    return errorMessage; // Return the original message for validation errors
+  }
   if (errorMessage.includes('API key') || errorMessage.includes('API_KEY')) {
     return 'Invalid API key. Please check your configuration.';
   }

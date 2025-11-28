@@ -38,10 +38,22 @@ contextBridge.exposeInMainWorld('snapask', {
   },
 
   // Save API key
-  saveApiKey: (apiKey) => ipcRenderer.invoke('save-api-key', apiKey),
+  // Accepts either string (backward compatibility) or { apiKey, provider, model } object
+  saveApiKey: (data) => {
+    if (typeof data === 'string') {
+      // Backward compatibility: old format
+      return ipcRenderer.invoke('save-api-key', data);
+    }
+    // New format: object with apiKey, provider, model
+    return ipcRenderer.invoke('save-api-key', data);
+  },
 
   // Get API key
+  // Returns either string (backward compatibility) or { apiKey, provider, model } object
   getApiKey: () => ipcRenderer.invoke('get-api-key'),
+
+  // Get available AI providers and models
+  getAiProviders: () => ipcRenderer.invoke('get-ai-providers'),
 
   // Close onboarding window
   closeOnboarding: () => {

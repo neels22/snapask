@@ -10,6 +10,9 @@ function App() {
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [apiKeyStatus, setApiKeyStatus] = useState('Checking...');
   const [apiKeyStatusColor, setApiKeyStatusColor] = useState('#fff');
+  const [providers, setProviders] = useState(null);
+  const [selectedProvider, setSelectedProvider] = useState('google');
+  const [selectedModel, setSelectedModel] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [conversationsList, setConversationsList] = useState([]);
@@ -261,6 +264,17 @@ function App() {
 
   const handleOpenSettings = async () => {
     setShowSettings(true);
+    // Load providers if not already loaded
+    if (!providers) {
+      try {
+        const result = await window.snapask.getAiProviders();
+        if (result.success) {
+          setProviders(result.providers);
+        }
+      } catch (error) {
+        console.error('Failed to load providers:', error);
+      }
+    }
     await checkApiKeyStatus();
   };
 
@@ -269,13 +283,35 @@ function App() {
     setApiKeyInput('');
   };
 
+  useEffect(() => {
+    // Update model when provider changes
+    if (providers && providers[selectedProvider]?.models?.length > 0) {
+      setSelectedModel(providers[selectedProvider].models[0].id);
+    }
+  }, [selectedProvider, providers]);
+
   const checkApiKeyStatus = async () => {
     try {
-      const apiKey = await window.snapask.getApiKey();
+      const result = await window.snapask.getApiKey();
+      // Handle both old format (string) and new format (object)
+      const apiKey = typeof result === 'string' ? result : result?.apiKey;
+      const provider = typeof result === 'object' ? result?.provider : null;
+      const model = typeof result === 'object' ? result?.model : null;
+
       if (apiKey) {
         const masked = apiKey.substring(0, 8) + '...' + apiKey.substring(apiKey.length - 4);
-        setApiKeyStatus(`Configured (${masked})`);
+        const providerName = providers?.[provider]?.name || provider || 'Unknown';
+        const modelName = providers?.[provider]?.models?.find(m => m.id === model)?.name || model || '';
+        setApiKeyStatus(`Configured (${masked}) - ${providerName}${modelName ? ` - ${modelName}` : ''}`);
         setApiKeyStatusColor('#4ade80');
+        
+        // Set selected provider and model if available
+        if (provider && providers) {
+          setSelectedProvider(provider);
+        }
+        if (model && providers) {
+          setSelectedModel(model);
+        }
       } else {
         setApiKeyStatus('Not configured');
         setApiKeyStatusColor('#f87171');
@@ -293,8 +329,17 @@ function App() {
       return;
     }
 
+    if (!selectedProvider || !selectedModel) {
+      alert('Please select a provider and model');
+      return;
+    }
+
     try {
-      const result = await window.snapask.saveApiKey(apiKey);
+      const result = await window.snapask.saveApiKey({
+        apiKey,
+        provider: selectedProvider,
+        model: selectedModel,
+      });
       if (result.success) {
         alert('API key saved successfully!');
         setApiKeyInput('');
@@ -306,6 +351,19 @@ function App() {
     } catch (error) {
       alert('Error saving API key: ' + error.message);
     }
+  };
+
+  const getProviderHelpUrl = (providerId) => {
+    const urls = {
+      google: 'https://makersuite.google.com/app/apikey',
+      openai: 'https://platform.openai.com/api-keys',
+      anthropic: 'https://console.anthropic.com/settings/keys',
+    };
+    return urls[providerId] || urls.google;
+  };
+
+  const getProviderName = (providerId) => {
+    return providers?.[providerId]?.name || providerId;
   };
 
   const handleApiKeyKeyDown = (e) => {
@@ -692,26 +750,69 @@ function App() {
             </div>
             <div className="settings-body">
               <div className="settings-section">
-                <h3>API Key</h3>
-                <p className="settings-description">Update your Google Gemini API key</p>
+                <h3>AI Configuration</h3>
+                <p className="settings-description">Update your AI provider and API key</p>
                 <div className="api-key-status">
                   <span>Status: </span>
                   <span style={{ color: apiKeyStatusColor }}>{apiKeyStatus}</span>
                 </div>
-                <input
-                  className="settings-input"
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  onKeyDown={handleApiKeyKeyDown}
-                  placeholder="Enter your new API key"
-                  autoComplete="off"
-                />
+
+                {providers && (
+                  <>
+                    <div className="settings-field">
+                      <label htmlFor="settings-provider-select">AI Provider</label>
+                      <select
+                        id="settings-provider-select"
+                        className="settings-select"
+                        value={selectedProvider}
+                        onChange={(e) => setSelectedProvider(e.target.value)}
+                      >
+                        {Object.keys(providers).map((providerId) => (
+                          <option key={providerId} value={providerId}>
+                            {providers[providerId].name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="settings-field">
+                      <label htmlFor="settings-model-select">Model</label>
+                      <select
+                        id="settings-model-select"
+                        className="settings-select"
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                      >
+                        {providers[selectedProvider]?.models?.map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                <div className="settings-field">
+                  <label htmlFor="settings-api-key-input">API Key</label>
+                  <input
+                    id="settings-api-key-input"
+                    className="settings-input"
+                    type="password"
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    onKeyDown={handleApiKeyKeyDown}
+                    placeholder={`Enter your ${getProviderName(selectedProvider)} API key`}
+                    autoComplete="off"
+                  />
+                </div>
                 <div className="settings-help">
-                  Get your API key from <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noreferrer">Google AI Studio</a>
+                  Get your API key from <a href={getProviderHelpUrl(selectedProvider)} target="_blank" rel="noreferrer">
+                    {getProviderName(selectedProvider)} API Keys
+                  </a>
                 </div>
                 <button className="settings-save-btn" onClick={handleSaveApiKey}>
-                  Save API Key
+                  Save Configuration
                 </button>
               </div>
             </div>
