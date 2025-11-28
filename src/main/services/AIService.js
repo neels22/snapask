@@ -7,6 +7,7 @@
 const Logger = require('../utils/logger');
 const { formatUserError } = require('../utils/errorHandler');
 const { AI } = require('../config/constants');
+const { HumanMessage } = require('@langchain/core/messages');
 
 class AIService {
   constructor() {
@@ -77,7 +78,21 @@ class AIService {
       case 'google': {
         // Using @langchain/google-genai
         const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
-        return new ChatGoogleGenerativeAI({
+        
+        // Create a custom class that extends ChatGoogleGenerativeAI to support gemini-2.0 models
+        class ExtendedChatGoogleGenerativeAI extends ChatGoogleGenerativeAI {
+          get _isMultimodalModel() {
+            // Original check: includes "vision" or starts with "gemini-1.5"
+            // Extended to also support "gemini-2.0" models
+            return (
+              this.model.includes('vision') ||
+              this.model.startsWith('gemini-1.5') ||
+              this.model.startsWith('gemini-2.0')
+            );
+          }
+        }
+        
+        return new ExtendedChatGoogleGenerativeAI({
           model: modelName,
           apiKey,
           temperature: 0.7,
@@ -149,7 +164,7 @@ class AIService {
       const providerConfig = AI.PROVIDERS[this.providerType];
       const supportsImage = providerConfig?.supportsImage ?? false;
 
-      // Check if image is supported
+      // Check if image is supported by provider
       if (imageDataUrl && !supportsImage) {
         this.logger.warn('Image provided but current provider does not support images');
         imageDataUrl = null;
@@ -208,37 +223,34 @@ class AIService {
    */
   _prepareMessages(prompt, imageDataUrl) {
     if (!imageDataUrl) {
-      // Text-only message - LangChain uses HumanMessage format
+      // Text-only message - use plain object format (works with all providers)
       return [{ role: 'user', content: prompt }];
     }
 
     // Multimodal message with image
-    // LangChain uses a standardized format for multimodal content
     const base64Image = this._extractBase64(imageDataUrl);
 
-    // Format varies slightly by provider, but LangChain handles most of it
+    // Format varies by provider
     if (this.providerType === 'google') {
-      // Google Gemini format
+      // Google Gemini format - use HumanMessage with image_url
       return [
-        {
-          role: 'user',
+        new HumanMessage({
           content: [
             { type: 'text', text: prompt },
             {
               type: 'image_url',
               image_url: {
-                url: imageDataUrl, // Can use data URL directly
+                url: imageDataUrl, // Data URL format: data:image/png;base64,...
               },
             },
           ],
-        },
+        }),
       ];
     }
     if (this.providerType === 'openai') {
-      // OpenAI format
+      // OpenAI format - use HumanMessage with image_url
       return [
-        {
-          role: 'user',
+        new HumanMessage({
           content: [
             { type: 'text', text: prompt },
             {
@@ -248,14 +260,13 @@ class AIService {
               },
             },
           ],
-        },
+        }),
       ];
     }
     if (this.providerType === 'anthropic') {
-      // Anthropic format
+      // Anthropic format - use HumanMessage with image source
       return [
-        {
-          role: 'user',
+        new HumanMessage({
           content: [
             { type: 'text', text: prompt },
             {
@@ -267,7 +278,7 @@ class AIService {
               },
             },
           ],
-        },
+        }),
       ];
     }
 

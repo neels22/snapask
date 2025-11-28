@@ -189,6 +189,7 @@ describe('AIService', () => {
 
     test('should generate multimodal response with image for Google', async () => {
       const { ChatGoogleGenerativeAI } = require('@langchain/google-genai');
+      const { HumanMessage } = require('@langchain/core/messages');
       
       aiService.initialize('google', 'test-api-key', 'gemini-2.0-flash');
       const result = await aiService.generateResponse('What is in this image?', testImageDataUrl);
@@ -196,24 +197,23 @@ describe('AIService', () => {
       expect(result.success).toBe(true);
       expect(result.text).toBe('Mock Google Gemini response');
       const mockInstance = ChatGoogleGenerativeAI.mock.results[ChatGoogleGenerativeAI.mock.results.length - 1].value;
-      expect(mockInstance.invoke).toHaveBeenCalledWith([
+      const callArgs = mockInstance.invoke.mock.calls[0][0];
+      expect(callArgs).toHaveLength(1);
+      expect(callArgs[0]).toBeInstanceOf(HumanMessage);
+      expect(callArgs[0].content).toEqual([
+        { type: 'text', text: 'What is in this image?' },
         {
-          role: 'user',
-          content: [
-            { type: 'text', text: 'What is in this image?' },
-            {
-              type: 'image_url',
-              image_url: {
-                url: testImageDataUrl,
-              },
-            },
-          ],
+          type: 'image_url',
+          image_url: {
+            url: testImageDataUrl,
+          },
         },
       ]);
     });
 
     test('should generate multimodal response with image for OpenAI', async () => {
       const { ChatOpenAI } = require('@langchain/openai');
+      const { HumanMessage } = require('@langchain/core/messages');
       
       aiService.initialize('openai', 'test-api-key', 'gpt-4o');
       const result = await aiService.generateResponse('What is in this image?', testImageDataUrl);
@@ -221,24 +221,23 @@ describe('AIService', () => {
       expect(result.success).toBe(true);
       expect(result.text).toBe('Mock OpenAI response');
       const mockInstance = ChatOpenAI.mock.results[ChatOpenAI.mock.results.length - 1].value;
-      expect(mockInstance.invoke).toHaveBeenCalledWith([
+      const callArgs = mockInstance.invoke.mock.calls[0][0];
+      expect(callArgs).toHaveLength(1);
+      expect(callArgs[0]).toBeInstanceOf(HumanMessage);
+      expect(callArgs[0].content).toEqual([
+        { type: 'text', text: 'What is in this image?' },
         {
-          role: 'user',
-          content: [
-            { type: 'text', text: 'What is in this image?' },
-            {
-              type: 'image_url',
-              image_url: {
-                url: testImageDataUrl,
-              },
-            },
-          ],
+          type: 'image_url',
+          image_url: {
+            url: testImageDataUrl,
+          },
         },
       ]);
     });
 
     test('should generate multimodal response with image for Anthropic', async () => {
       const { ChatAnthropic } = require('@langchain/anthropic');
+      const { HumanMessage } = require('@langchain/core/messages');
       
       aiService.initialize('anthropic', 'test-api-key', 'claude-3-5-sonnet-20241022');
       const result = await aiService.generateResponse('What is in this image?', testImageDataUrl);
@@ -246,20 +245,18 @@ describe('AIService', () => {
       expect(result.success).toBe(true);
       expect(result.text).toBe('Mock Anthropic Claude response');
       const mockInstance = ChatAnthropic.mock.results[ChatAnthropic.mock.results.length - 1].value;
-      expect(mockInstance.invoke).toHaveBeenCalledWith([
+      const callArgs = mockInstance.invoke.mock.calls[0][0];
+      expect(callArgs).toHaveLength(1);
+      expect(callArgs[0]).toBeInstanceOf(HumanMessage);
+      expect(callArgs[0].content).toEqual([
+        { type: 'text', text: 'What is in this image?' },
         {
-          role: 'user',
-          content: [
-            { type: 'text', text: 'What is in this image?' },
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: 'image/png',
-                data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-              },
-            },
-          ],
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: 'image/png',
+            data: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+          },
         },
       ]);
     });
@@ -330,7 +327,7 @@ describe('AIService', () => {
       const originalSupportsImage = AI.PROVIDERS.google.supportsImage;
       AI.PROVIDERS.google.supportsImage = false;
 
-      aiService.initialize('google', 'test-api-key');
+      aiService.initialize('google', 'test-api-key', 'gemini-2.0-flash');
       const result = await aiService.generateResponse('Test prompt', 'data:image/png;base64,test');
 
       // Should still work, but without image
